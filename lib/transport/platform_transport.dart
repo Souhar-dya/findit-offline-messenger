@@ -43,6 +43,18 @@ abstract class PlatformTransportGateway {
   /// Native discovery / lifecycle events, as raw maps.
   Stream<Map<String, Object?>> get events;
 
+  /// Whether the device's Wi-Fi radio is currently enabled.
+  Future<bool> isWifiEnabled();
+
+  /// Opens the system Wi-Fi settings panel and returns whether Wi-Fi is now on.
+  Future<bool> requestWifiEnable();
+
+  /// Whether required runtime permissions are granted.
+  Future<bool> checkPermissions();
+
+  /// Requests required runtime permissions.
+  Future<bool> requestPermissions();
+
   Future<void> dispose();
 }
 
@@ -107,6 +119,38 @@ class MethodChannelPlatformTransportGateway
       .receiveBroadcastStream()
       .where((raw) => raw is Map)
       .map((raw) => _asStringMap(raw));
+
+  @override
+  Future<bool> isWifiEnabled() async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      PlatformMethodNames.isWifiEnabled,
+    );
+    return (result?['enabled'] as bool?) ?? false;
+  }
+
+  @override
+  Future<bool> requestWifiEnable() async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      PlatformMethodNames.requestWifiEnable,
+    );
+    return (result?['enabled'] as bool?) ?? false;
+  }
+
+  @override
+  Future<bool> checkPermissions() async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      PlatformMethodNames.checkPermissions,
+    );
+    return (result?['granted'] as bool?) ?? false;
+  }
+
+  @override
+  Future<bool> requestPermissions() async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      PlatformMethodNames.requestPermissions,
+    );
+    return (result?['granted'] as bool?) ?? false;
+  }
 
   @override
   Future<void> dispose() async {

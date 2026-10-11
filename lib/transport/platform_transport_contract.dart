@@ -62,6 +62,21 @@ class PlatformMethodNames {
 
   /// Tears down the plugin. No args.
   static const String dispose = 'dispose';
+
+  /// Checks whether Wi-Fi is enabled. -> `{ enabled: bool }`.
+  static const String isWifiEnabled = 'isWifiEnabled';
+
+  /// Requests the system Wi-Fi panel so the user can enable Wi-Fi.
+  /// -> `{ enabled: bool }` (whether Wi-Fi is now on).
+  static const String requestWifiEnable = 'requestWifiEnable';
+
+  /// Checks whether required runtime permissions are granted.
+  /// -> `{ granted: bool, missing: List<String> }`.
+  static const String checkPermissions = 'checkPermissions';
+
+  /// Requests the required runtime permissions.
+  /// -> `{ granted: bool }`.
+  static const String requestPermissions = 'requestPermissions';
 }
 
 /// Event names carried on the [PlatformChannelNames.events] channel, each as a

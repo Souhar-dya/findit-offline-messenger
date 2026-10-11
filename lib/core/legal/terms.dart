@@ -7,14 +7,15 @@ class TermsDocument {
   TermsDocument._();
 
   /// Version of the wording below. Bump it whenever the text changes.
-  static const String version = '1.2';
+  static const String version = '2.0';
 
   static const String title = 'Consent & terms of use';
 
   static const String intro =
-      'FindIt is an offline-first messenger. Please read this before you '
-      'continue. It explains what leaves your device and what your device is '
-      'allowed to do. No data is transferred until you agree.';
+      'FindIt is an offline-first, decentralized messenger. Please read this '
+      'before you continue. It explains what leaves your device, what your '
+      'device is allowed to do, and the limits of a peer-to-peer network. No '
+      'data is transferred until you agree.';
 
   static const List<TermsSection> sections = <TermsSection>[
     TermsSection(
@@ -23,6 +24,15 @@ class TermsDocument {
           'Your identity is a key pair created on this device. The private '
           'keys live in the platform secure storage (Keystore / Keychain) and '
           'are never exported.',
+    ),
+    TermsSection(
+      'Decentralized — no one controls the network',
+      'FindIt is a peer-to-peer application. Messages are end-to-end '
+          'encrypted and relayed directly between devices. The developer does '
+          'not operate servers, does not store your messages, and cannot '
+          'access, monitor, censor, or remove content once it reaches another '
+          'person\'s device. No one — not even the developer — can take down '
+          'or control what is shared.',
     ),
     TermsSection(
       'What leaves your device',
@@ -58,6 +68,13 @@ class TermsDocument {
       'Prototype, not a product',
       'FindIt is an unaudited protocol and UX prototype. Do not rely on it for '
           'anything safety-critical, and treat it as a work in progress.',
+    ),
+    TermsSection(
+      'Full terms',
+      'By continuing you agree to the End User License Agreement and the '
+          'Acceptable Use Policy. The developer is not responsible for content '
+          'exchanged between users and cannot remove or moderate it. For '
+          'questions, contact kundusouhardya@gmail.com.',
     ),
   ];
 }

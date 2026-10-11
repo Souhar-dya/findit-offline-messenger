@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/di/app_services.dart';
 import '../../routing/routing_engine.dart';
+import '../../transport/platform_transport.dart';
 import '../../transport/transport.dart';
 
 /// Backs the Nearby screen: transport capability, discovered peers, live
@@ -38,6 +39,9 @@ class NearbyController extends ChangeNotifier {
   bool get demoRunning => _services.isDemoRunning;
   bool get demoStarting => _services.isStartingDemo;
   String? get demoError => _services.demoError;
+  bool get wifiEnabled => _wifiEnabled;
+
+  bool _wifiEnabled = true;
 
   TransportPeer? peerFor(String peerId) {
     for (final peer in _knownPeers) {
@@ -52,11 +56,57 @@ class NearbyController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> checkWifi() async {
+    final transport = _services.core.transport;
+    if (transport is! PlatformTransport) return true;
+    _wifiEnabled = await transport.gateway.isWifiEnabled();
+    notifyListeners();
+    return _wifiEnabled;
+  }
+
+  Future<bool> enableWifi() async {
+    final transport = _services.core.transport;
+    if (transport is! PlatformTransport) return true;
+    _busy = true;
+    notifyListeners();
+    _wifiEnabled = await transport.gateway.requestWifiEnable();
+    _busy = false;
+    notifyListeners();
+    return _wifiEnabled;
+  }
+
+  Future<bool> checkPermissions() async {
+    final transport = _services.core.transport;
+    if (transport is! PlatformTransport) return true;
+    final granted = await transport.gateway.checkPermissions();
+    notifyListeners();
+    return granted;
+  }
+
+  Future<bool> requestPermissions() async {
+    final transport = _services.core.transport;
+    if (transport is! PlatformTransport) return true;
+    _busy = true;
+    notifyListeners();
+    final granted = await transport.gateway.requestPermissions();
+    _busy = false;
+    notifyListeners();
+    return granted;
+  }
+
   Future<void> startTransport() async {
     _busy = true;
     _error = null;
     notifyListeners();
     try {
+      if (!await checkWifi()) {
+        _error = 'Wi-Fi is off. Turn on Wi-Fi to discover nearby devices.';
+        return;
+      }
+      if (!await checkPermissions()) {
+        _error = 'Location and Nearby Devices permissions are required. Approve them to use FindIt.';
+        return;
+      }
       await _services.startNetworking();
     } catch (error) {
       _error = 'Could not start discovery: $error';

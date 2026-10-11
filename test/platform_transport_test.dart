@@ -81,6 +81,27 @@ class _FakeGateway implements PlatformTransportGateway {
   bool connectFails = false;
 
   @override
+  Future<bool> isWifiEnabled() async => wifiEnabled;
+
+  @override
+  Future<bool> requestWifiEnable() async {
+    wifiEnabled = true;
+    return wifiEnabled;
+  }
+
+  @override
+  Future<bool> checkPermissions() async => permissionsGranted;
+
+  @override
+  Future<bool> requestPermissions() async {
+    permissionsGranted = true;
+    return permissionsGranted;
+  }
+
+  bool wifiEnabled = true;
+  bool permissionsGranted = true;
+
+  @override
   Stream<Map<String, Object?>> get events => _events.stream;
 
   void emit(Map<String, Object?> event) {

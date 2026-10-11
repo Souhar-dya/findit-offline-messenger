@@ -27,6 +27,8 @@ class TransportBridge(
     private var advertisedHandle: String? = null
     private var displayNameHint: String? = null
     private var discoverable: Boolean = true
+    private var lastErrorCode: String = TransportContract.ERR_UNSUPPORTED_FEATURE
+    private var lastErrorMessage: String = "Fabric unavailable"
 
     /** Fabric of the currently running engine, or null when not started. */
     val fabric: String? get() = engine?.fabric
@@ -52,12 +54,7 @@ class TransportBridge(
         }
         val candidate = createEngine(engineEvents())
         if (!candidate.start()) {
-            // The engine reports a precise code/message through events first;
-            // surface the same failure to Dart so the UI is honest.
-            return BridgeResult.Failure(
-                TransportContract.ERR_UNSUPPORTED_FEATURE,
-                "Fabric ${candidate.fabric} is unavailable or scaffold-only",
-            )
+            return BridgeResult.Failure(lastErrorCode, lastErrorMessage)
         }
         engine = candidate
         publishAdvertisement()
@@ -169,6 +166,8 @@ class TransportBridge(
             )
         },
         onError = { code, message ->
+            lastErrorCode = code
+            lastErrorMessage = message
             emit(
                 mapOf(
                     TransportContract.EVENT to TransportContract.EVENT_ERROR,

@@ -20,6 +20,10 @@ object TransportContract {
     const val METHOD_CONNECT = "connect"
     const val METHOD_CAPABILITIES = "getCapabilities"
     const val METHOD_DISPOSE = "dispose"
+    const val METHOD_IS_WIFI_ENABLED = "isWifiEnabled"
+    const val METHOD_REQUEST_WIFI_ENABLE = "requestWifiEnable"
+    const val METHOD_CHECK_PERMISSIONS = "checkPermissions"
+    const val METHOD_REQUEST_PERMISSIONS = "requestPermissions"
 
     // Event names (mirror PlatformEventNames).
     const val EVENT = "event"

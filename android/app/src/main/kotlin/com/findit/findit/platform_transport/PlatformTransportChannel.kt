@@ -85,6 +85,41 @@ class PlatformTransportChannel private constructor(
                 result.success(null)
             }
 
+            TransportContract.METHOD_IS_WIFI_ENABLED -> {
+                val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+                result.success(mapOf("enabled" to wifiManager.isWifiEnabled))
+            }
+
+            TransportContract.METHOD_REQUEST_WIFI_ENABLE -> {
+                val intent = android.content.Intent(android.provider.Settings.Panel.ACTION_WIFI)
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                appContext.startActivity(intent)
+                result.success(mapOf("enabled" to true))
+            }
+
+            TransportContract.METHOD_CHECK_PERMISSIONS -> {
+                val missing = mutableListOf<String>()
+                val locationPermission = if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    android.Manifest.permission.NEARBY_WIFI_DEVICES
+                } else {
+                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                }
+                if (appContext.checkSelfPermission(locationPermission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    missing.add(locationPermission)
+                }
+                result.success(mapOf("granted" to missing.isEmpty(), "missing" to missing))
+            }
+
+            TransportContract.METHOD_REQUEST_PERMISSIONS -> {
+                val locationPermission = if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    android.Manifest.permission.NEARBY_WIFI_DEVICES
+                } else {
+                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                }
+                val granted = appContext.checkSelfPermission(locationPermission) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                result.success(mapOf("granted" to granted))
+            }
+
             else -> result.notImplemented()
         }
     }
