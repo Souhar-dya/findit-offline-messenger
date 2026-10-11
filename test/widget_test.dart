@@ -14,6 +14,25 @@ import 'package:path/path.dart' as p;
 
 import 'support/db.dart';
 
+/// Alternates real-async progress with UI pumps until [finder] matches, or
+/// fails after [timeout]. Starting networking performs real IO, so widget tests
+/// must wait for the actual state instead of a fixed delay.
+Future<void> pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 20),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    await tester.pump(const Duration(milliseconds: 50));
+    if (finder.evaluate().isNotEmpty) return;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+  }
+  fail('Timed out after $timeout waiting for: $finder');
+}
+
 void main() {
   group('formatBytes', () {
     test('formats bytes, kilobytes and megabytes', () {
@@ -94,10 +113,7 @@ void main() {
       // Turning the switch on starts the app: onboarding appears.
       await tester.tap(switchTile);
       await tester.pump();
-      await tester.runAsync(() async {
-        await Future<void>.delayed(const Duration(milliseconds: 150));
-      });
-      await tester.pump();
+      await pumpUntilFound(tester, find.text('Welcome to FindIt'));
       expect(find.text('FindIt is radio silent'), findsNothing);
       expect(find.text('Welcome to FindIt'), findsOneWidget);
     } finally {
