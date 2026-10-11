@@ -18,17 +18,18 @@ class NearbyScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           if (controller.error != null) ErrorBanner(message: controller.error!),
-          if (!capabilities.isSimulated)
+          if (!capabilities.isSimulated && !capabilities.canDiscover)
             const InfoBanner(
               message:
-                  'Real device-to-device Wi-Fi is not implemented in this '
-                  'build. The Nearby feature below is unavailable; see '
-                  'Profile → Transport for details.',
+                  'Native Wi-Fi is unavailable on this platform, so Nearby '
+                  'cannot discover peers. See Profile → Transport for details.',
             ),
           SectionCard(
             title: controller.transportName,
             subtitle: capabilities.isSimulated
                 ? 'Simulated · no radio is used'
+                : capabilities.canDiscover
+                ? 'Native · Wi-Fi Direct'
                 : 'Unavailable on this platform',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,10 +59,15 @@ class NearbyScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     FilledButton.icon(
-                      onPressed: controller.busy || !capabilities.canConnect
+                      // Start must never be disabled by the capability report:
+                      // before the transport has started it reports nothing, so
+                      // gating on it would leave the button dead on first run.
+                      onPressed: controller.busy
                           ? null
                           : (controller.isRunning
                                 ? controller.stopTransport
@@ -71,6 +77,31 @@ class NearbyScreen extends StatelessWidget {
                       ),
                       label: Text(controller.isRunning ? 'Stop' : 'Start'),
                     ),
+                    if (!controller.isRunning && controller.needsWifi)
+                      OutlinedButton.icon(
+                        onPressed: controller.busy
+                            ? null
+                            : controller.enableWifi,
+                        icon: const Icon(Icons.wifi),
+                        label: const Text('Turn on Wi-Fi'),
+                      ),
+                    if (!controller.isRunning &&
+                        controller.needsPermission) ...[
+                      OutlinedButton.icon(
+                        onPressed: controller.busy
+                            ? null
+                            : controller.startTransport,
+                        icon: const Icon(Icons.verified_user),
+                        label: const Text('Grant permission'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: controller.busy
+                            ? null
+                            : controller.openAppSettings,
+                        icon: const Icon(Icons.settings),
+                        label: const Text('Open settings'),
+                      ),
+                    ],
                   ],
                 ),
               ],

@@ -7,13 +7,21 @@ import io.flutter.embedding.engine.FlutterEngine
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        // Registers the Dart <-> native transport channel. The app keeps using
-        // the simulated transport by default; the native fabric is opt-in.
-        // Android uses Wi-Fi Direct (implemented, but not yet hardware-verified);
-        // Wi-Fi Aware is still a stub. See README, "Native radio status".
-        PlatformTransportChannel.register(
-            applicationContext,
+        // The native Wi-Fi Direct transport owns the "Nearby" feature. It needs
+        // runtime permissions, so the channel is installed with this Activity.
+        PlatformTransportChannel.install(
+            this,
             flutterEngine.dartExecutor.binaryMessenger,
         )
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // Forward the dialog result to the pending Dart permission request.
+        PlatformTransportChannel.onRequestPermissionsResult(requestCode, grantResults)
     }
 }

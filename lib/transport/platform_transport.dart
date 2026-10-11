@@ -55,6 +55,10 @@ abstract class PlatformTransportGateway {
   /// Requests required runtime permissions.
   Future<bool> requestPermissions();
 
+  /// Opens this app's system settings page, for when a permission was
+  /// permanently denied and must be granted manually.
+  Future<void> openAppSettings();
+
   Future<void> dispose();
 }
 
@@ -153,6 +157,11 @@ class MethodChannelPlatformTransportGateway
   }
 
   @override
+  Future<void> openAppSettings() async {
+    await _channel.invokeMethod<void>(PlatformMethodNames.openAppSettings);
+  }
+
+  @override
   Future<void> dispose() async {
     await _channel.invokeMethod<void>(PlatformMethodNames.dispose);
   }
@@ -244,10 +253,8 @@ class PlatformTransport implements Transport {
       isSimulated: false,
       supportsBackground: false,
       description:
-          'Native $fabric transport. Requires both devices within range on '
-          'the same Wi-Fi network or in a direct group. The Android Wi-Fi '
-          'Direct fabric is implemented, but on-device connectivity is NOT '
-          'yet verified on physical hardware.',
+          'Native Wi-Fi Direct transport. Both devices need Wi-Fi on, the '
+          'Nearby devices permission granted, and must be within range.',
     );
   }
 

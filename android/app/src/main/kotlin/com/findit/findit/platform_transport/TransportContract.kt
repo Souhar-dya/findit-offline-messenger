@@ -24,6 +24,7 @@ object TransportContract {
     const val METHOD_REQUEST_WIFI_ENABLE = "requestWifiEnable"
     const val METHOD_CHECK_PERMISSIONS = "checkPermissions"
     const val METHOD_REQUEST_PERMISSIONS = "requestPermissions"
+    const val METHOD_OPEN_APP_SETTINGS = "openAppSettings"
 
     // Event names (mirror PlatformEventNames).
     const val EVENT = "event"

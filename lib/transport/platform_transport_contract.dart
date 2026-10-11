@@ -77,6 +77,10 @@ class PlatformMethodNames {
   /// Requests the required runtime permissions.
   /// -> `{ granted: bool }`.
   static const String requestPermissions = 'requestPermissions';
+
+  /// Opens this app's system settings page (e.g. after the user permanently
+  /// denied a permission). No args.
+  static const String openAppSettings = 'openAppSettings';
 }
 
 /// Event names carried on the [PlatformChannelNames.events] channel, each as a

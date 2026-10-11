@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/di/app_services.dart';
 import '../../routing/routing_engine.dart';
-import '../../transport/platform_transport.dart';
 import '../../transport/transport.dart';
 
 /// Backs the Nearby screen: transport capability, discovered peers, live
@@ -40,8 +39,12 @@ class NearbyController extends ChangeNotifier {
   bool get demoStarting => _services.isStartingDemo;
   String? get demoError => _services.demoError;
   bool get wifiEnabled => _wifiEnabled;
+  bool get needsWifi => _needsWifi;
+  bool get needsPermission => _needsPermission;
 
   bool _wifiEnabled = true;
+  bool _needsWifi = false;
+  bool _needsPermission = false;
 
   TransportPeer? peerFor(String peerId) {
     for (final peer in _knownPeers) {
@@ -53,59 +56,57 @@ class NearbyController extends ChangeNotifier {
   Future<void> refresh() async {
     _knownPeers = _services.core.transport.knownPeers;
     _sessions = _services.core.routingEngine.peers;
+    await refreshPlatformState();
     notifyListeners();
   }
 
-  Future<bool> checkWifi() async {
-    final transport = _services.core.transport;
-    if (transport is! PlatformTransport) return true;
-    _wifiEnabled = await transport.gateway.isWifiEnabled();
-    notifyListeners();
-    return _wifiEnabled;
+  /// Re-reads the radio + permission state without prompting the user.
+  Future<void> refreshPlatformState() async {
+    if (!_services.requiresPlatformPermissions) return;
+    _wifiEnabled = await _services.isWifiEnabled();
   }
 
-  Future<bool> enableWifi() async {
-    final transport = _services.core.transport;
-    if (transport is! PlatformTransport) return true;
+  /// Opens the system Wi-Fi panel so the user can turn Wi-Fi on.
+  Future<void> enableWifi() async {
+    if (!_services.requiresPlatformPermissions) return;
     _busy = true;
     notifyListeners();
-    _wifiEnabled = await transport.gateway.requestWifiEnable();
-    _busy = false;
-    notifyListeners();
-    return _wifiEnabled;
+    try {
+      await _services.requestWifiEnable();
+    } finally {
+      _busy = false;
+      await refresh();
+    }
   }
 
-  Future<bool> checkPermissions() async {
-    final transport = _services.core.transport;
-    if (transport is! PlatformTransport) return true;
-    final granted = await transport.gateway.checkPermissions();
-    notifyListeners();
-    return granted;
-  }
-
-  Future<bool> requestPermissions() async {
-    final transport = _services.core.transport;
-    if (transport is! PlatformTransport) return true;
-    _busy = true;
-    notifyListeners();
-    final granted = await transport.gateway.requestPermissions();
-    _busy = false;
-    notifyListeners();
-    return granted;
-  }
+  /// Opens this app's system settings page (permanently denied permission).
+  Future<void> openAppSettings() => _services.openAppSettings();
 
   Future<void> startTransport() async {
     _busy = true;
     _error = null;
+    _needsWifi = false;
+    _needsPermission = false;
     notifyListeners();
     try {
-      if (!await checkWifi()) {
-        _error = 'Wi-Fi is off. Turn on Wi-Fi to discover nearby devices.';
-        return;
-      }
-      if (!await checkPermissions()) {
-        _error = 'Location and Nearby Devices permissions are required. Approve them to use FindIt.';
-        return;
+      if (_services.requiresPlatformPermissions) {
+        _wifiEnabled = await _services.isWifiEnabled();
+        if (!_wifiEnabled) {
+          _needsWifi = true;
+          _error = 'Wi-Fi is off. Turn on Wi-Fi to discover nearby devices.';
+          return;
+        }
+        if (!await _services.arePermissionsGranted()) {
+          // Show the real system dialog, then continue only if it is granted.
+          final granted = await _services.requestPermissions();
+          if (!granted) {
+            _needsPermission = true;
+            _error =
+                'FindIt needs the Nearby devices permission to find peers. '
+                'Grant it, then tap Start again.';
+            return;
+          }
+        }
       }
       await _services.startNetworking();
     } catch (error) {

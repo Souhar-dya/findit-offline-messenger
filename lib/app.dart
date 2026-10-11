@@ -11,6 +11,7 @@ import 'presentation/screens/consent_screen.dart';
 import 'presentation/screens/home_shell.dart';
 import 'presentation/screens/networking_gate_screen.dart';
 import 'presentation/screens/onboarding_screen.dart';
+import 'presentation/screens/permission_gate_screen.dart';
 
 /// The root application widget.
 class FindItApp extends StatelessWidget {
@@ -83,6 +84,11 @@ class _RootGateState extends State<RootGate> {
     final services = context.watch<AppServices>();
     if (!services.consentAccepted) {
       return const ConsentScreen();
+    }
+    // The native radio needs OS permissions before it can do anything; ask for
+    // them right after consent and do not proceed until they are granted.
+    if (services.requiresPlatformPermissions && !services.permissionsGranted) {
+      return const PermissionGateScreen();
     }
     // The single master switch: while networking is off the app is radio
     // silent and only that switch is shown.

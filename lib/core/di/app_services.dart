@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../demo/simulated_peer_agent.dart';
+import '../../transport/platform_transport.dart';
 import '../../transport/simulated_transport.dart';
 import '../config/app_config.dart';
 import 'core_services.dart';
@@ -41,10 +42,12 @@ class AppServices extends ChangeNotifier {
   /// moves before consent, and nothing is discovered while the switch is off.
   Future<void> initialize() async {
     await core.settings.load();
+    await refreshPermissions();
     final identity = await core.loadIdentity();
     if (identity != null &&
         core.settings.consentAccepted &&
-        core.settings.networkingEnabled) {
+        core.settings.networkingEnabled &&
+        _permissionsGranted) {
       await startNetworking();
     }
   }
@@ -109,6 +112,70 @@ class AppServices extends ChangeNotifier {
     core.maintenance.stop();
     if (core.routingEngine.isRunning) {
       await core.routingEngine.stop();
+    }
+  }
+
+  /// The native platform transport, when this build has one (Android). Returns
+  /// null for the simulated/unsupported transports, which need no OS
+  /// permissions or Wi-Fi checks.
+  PlatformTransport? get platformTransport {
+    final transport = core.transport;
+    return transport is PlatformTransport ? transport : null;
+  }
+
+  /// True when the running transport is the native one and therefore depends on
+  /// OS runtime permissions + the Wi-Fi radio.
+  bool get requiresPlatformPermissions => platformTransport != null;
+
+  Future<bool> isWifiEnabled() async =>
+      await platformTransport?.gateway.isWifiEnabled() ?? true;
+
+  Future<bool> requestWifiEnable() async =>
+      await platformTransport?.gateway.requestWifiEnable() ?? true;
+
+  Future<bool> arePermissionsGranted() async =>
+      await platformTransport?.gateway.checkPermissions() ?? true;
+
+  /// Shows the system permission dialog. Returns whether it was granted.
+  Future<bool> requestPermissions() async =>
+      await platformTransport?.gateway.requestPermissions() ?? true;
+
+  /// Opens this app's system settings page (for permanently denied permissions).
+  Future<void> openAppSettings() async {
+    await platformTransport?.gateway.openAppSettings();
+  }
+
+  bool _permissionsGranted = true;
+
+  /// Whether the OS permissions the native transport needs are granted.
+  bool get permissionsGranted => _permissionsGranted;
+
+  /// Re-reads permission state without prompting. Notifies listeners.
+  Future<void> refreshPermissions() async {
+    _permissionsGranted = requiresPlatformPermissions
+        ? await arePermissionsGranted()
+        : true;
+    notifyListeners();
+  }
+
+  /// Prompts for the required permissions when missing and returns the result.
+  Future<bool> ensurePermissions() async {
+    await refreshPermissions();
+    if (_permissionsGranted) return true;
+    _permissionsGranted = await requestPermissions();
+    notifyListeners();
+    return _permissionsGranted;
+  }
+
+  /// Called by the UI after the permission dialog is granted, so a pending
+  /// networking start can proceed.
+  Future<void> onPermissionsGranted() async {
+    _permissionsGranted = true;
+    notifyListeners();
+    if (consentAccepted &&
+        networkingEnabled &&
+        core.identityHolder.hasIdentity) {
+      await startNetworking();
     }
   }
 

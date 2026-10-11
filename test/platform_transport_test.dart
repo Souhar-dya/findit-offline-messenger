@@ -98,6 +98,9 @@ class _FakeGateway implements PlatformTransportGateway {
     return permissionsGranted;
   }
 
+  @override
+  Future<void> openAppSettings() async {}
+
   bool wifiEnabled = true;
   bool permissionsGranted = true;
 
