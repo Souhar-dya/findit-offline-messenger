@@ -1,7 +1,13 @@
 name: Android release
 
-# Publishes a downloadable APK. Push a tag (e.g. `v0.1.0`) to cut a release, or
-# run the workflow manually to get the APK as a build artifact.
+# Publishes downloadable APKs. Push a tag (e.g. `v0.1.0`) to cut a release, or
+# run the workflow manually to get the APKs as build artifacts.
+#
+# For every release it publishes:
+#   * findit-<tag>-universal.apk    -> works on every device (largest)
+#   * findit-<tag>-arm64-v8a.apk    -> most phones since ~2016 (recommended)
+#   * findit-<tag>-armeabi-v7a.apk  -> older 32-bit phones
+#   * findit-<tag>-x86_64.apk       -> emulators / some Chromebooks
 on:
   push:
     tags:
@@ -13,8 +19,16 @@ permissions:
 
 jobs:
   build:
-    name: Build & publish APK
+    name: Build & publish APKs
     runs-on: ubuntu-latest
+    env:
+      # Set these as repository secrets to sign with a real upload key. When
+      # they are absent the build falls back to the debug key (still installable
+      # by side-loading, but Play Protect will warn).
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,25 +54,46 @@ jobs:
       - name: Test
         run: flutter test
 
-      - name: Build release APK
+      - name: Restore release keystore
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/findit-release.keystore
+          cat > android/key.properties <<EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=app/findit-release.keystore
+          EOF
+
+      - name: Build universal APK
         run: flutter build apk --release
 
-      - name: Name the APK after the tag
+      - name: Build per-ABI APKs
+        run: flutter build apk --release --split-per-abi
+
+      - name: Collect and name the APKs
         shell: bash
         run: |
-          name="findit-${GITHUB_REF_NAME:-dev}.apk"
-          cp build/app/outputs/flutter-apk/app-release.apk "$name"
-          echo "APK=$name" >> "$GITHUB_ENV"
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME:-dev}"
+          out="dist"
+          mkdir -p "$out"
+          cp build/app/outputs/flutter-apk/app-release.apk             "$out/findit-$tag-universal.apk"
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk   "$out/findit-$tag-arm64-v8a.apk"
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "$out/findit-$tag-armeabi-v7a.apk"
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk      "$out/findit-$tag-x86_64.apk"
+          ls -lh "$out"
 
-      - name: Upload build artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: findit-apk
-          path: ${{ env.APK }}
+          name: findit-apks
+          path: dist/*.apk
+          if-no-files-found: error
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.APK }}
+          files: dist/*.apk
           generate_release_notes: true

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="440" viewBox="0 0 1040 440" role="img" aria-label="Diagram: messages travel directly between phones or are carried by a switched-on carrier; there is no server or cloud, and carriers cannot read the contents.">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0 0 L8 3 L0 6 Z" fill="#6750A4"/>
+    </marker>
+    <filter id="soft2" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#1C1B1F" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1040" height="440" rx="28" fill="#FFFFFF" stroke="#E6E1E5"/>
+  <g font-family="system-ui, 'Segoe UI', Roboto, sans-serif">
+
+    <!-- no server -->
+    <g transform="translate(520,58)" opacity="0.95">
+      <rect x="-26" y="-24" width="52" height="20" rx="4" fill="#E7E0EC" stroke="#79747E" stroke-width="1.5"/>
+      <rect x="-26" y="0" width="52" height="20" rx="4" fill="#E7E0EC" stroke="#79747E" stroke-width="1.5"/>
+      <circle cx="-16" cy="-14" r="2" fill="#79747E"/>
+      <circle cx="-16" cy="10" r="2" fill="#79747E"/>
+      <line x1="-33" y1="-31" x2="33" y2="31" stroke="#B3261E" stroke-width="3.5" stroke-linecap="round"/>
+    </g>
+    <text x="520" y="108" font-size="13" font-weight="700" fill="#49454F" text-anchor="middle">No servers · no cloud · no account</text>
+
+    <!-- sender phone -->
+    <g transform="translate(95,150)">
+      <rect width="150" height="250" rx="22" fill="#F7F2FA" stroke="#E6E1E5" filter="url(#soft2)"/>
+      <rect x="14" y="20" width="122" height="210" rx="14" fill="#FFFFFF"/>
+      <rect x="78" y="40" width="60" height="34" rx="14" fill="#6750A4"/>
+      <text x="108" y="63" font-size="11" fill="#FFFFFF" text-anchor="middle">Hi Ben!</text>
+      <text x="75" y="330" font-size="14" font-weight="700" fill="#1C1B1F" text-anchor="middle">You</text>
+      <text x="75" y="350" font-size="11" fill="#79747E" text-anchor="middle">sender · switch on</text>
+    </g>
+
+    <!-- carrier -->
+    <g transform="translate(445,58)">
+      <rect width="150" height="250" rx="22" fill="#FFFFFF" stroke="#E6E1E5" filter="url(#soft2)"/>
+      <g transform="translate(75,120)">
+        <rect x="-26" y="-16" width="52" height="32" rx="6" fill="#EADDFF" stroke="#6750A4" stroke-width="1.5"/>
+        <path d="M-26 -16 L0 4 L26 -16" fill="none" stroke="#6750A4" stroke-width="1.5"/>
+        <path d="M-8 12 v-5 a8 8 0 0 1 16 0 v5" fill="none" stroke="#21005D" stroke-width="2.5"/>
+        <rect x="-10" y="12" width="20" height="15" rx="3" fill="#21005D"/>
+      </g>
+      <text x="75" y="196" font-size="10" font-weight="600" fill="#21005D" text-anchor="middle">can't read it</text>
+    </g>
+
+    <!-- recipient -->
+    <g transform="translate(820,58)" opacity="1">
+      <rect width="150" height="290" rx="24" fill="#FFFFFF" stroke="#E6E1E5" filter="url(#soft2)"/>
+      <rect x="20" y="30" width="110" height="46" rx="16" fill="#E7E0EC"/>
+      <text x="75" y="58" font-size="11" fill="#1C1B1F" text-anchor="middle">Received!</text>
+      <text x="75" y="250" font-size="12" font-weight="700" fill="#1C1B1F" text-anchor="middle">Friend</text>
+      <text x="75" y="270" font-size="10" fill="#79747E" text-anchor="middle">switch on</text>
+    </g>
+
+    <!-- links -->
+    <line x1="250" y1="200" x2="440" y2="200" stroke="#6750A4" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#arrow)"/>
+    <line x1="600" y1="200" x2="790" y2="200" stroke="#6750A4" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#arrow)"/>
+    <text x="345" y="188" font-size="10" fill="#49454F" text-anchor="middle">encrypted</text>
+    <text x="695" y="188" font-size="10" fill="#49454F" text-anchor="middle">encrypted</text>
+
+    <text x="520" y="392" font-size="12" font-weight="600" fill="#1C1B1F" text-anchor="middle">Direct when two phones meet, or carried store-carry-forward by a peer that happens to be switched on.</text>
+    <text x="520" y="414" font-size="11" fill="#79747E" text-anchor="middle">No internet required · Bluetooth is never used · every carrier is itself radio silent until its own switch is on</text>
+  </g>
+</svg>

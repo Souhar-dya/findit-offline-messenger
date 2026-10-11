@@ -55,3 +55,6 @@ key.properties
 *.keystore
 google-services.json
 
+# Private developer notes: kept locally, never published.
+DEVELOPMENT.md
+

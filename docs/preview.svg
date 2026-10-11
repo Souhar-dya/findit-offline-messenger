@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="700" viewBox="0 0 1040 700" role="img" aria-label="Illustrative previews of the FindIt app: consent, the single radio-silent switch, and a chat.">
+  <defs>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#1C1B1F" flood-opacity="0.14"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1040" height="700" rx="28" fill="#F3F0F7"/>
+  <g font-family="system-ui, 'Segoe UI', Roboto, sans-serif">
+
+    <!-- ============ 1. Consent ============ -->
+    <g transform="translate(60,36)">
+      <rect width="300" height="600" rx="28" fill="#FFFFFF" stroke="#E6E1E5" filter="url(#soft)"/>
+      <text x="24" y="44" font-size="15" font-weight="700" fill="#1C1B1F">Consent &amp; terms of use</text>
+      <line x1="0" y1="58" x2="300" y2="58" stroke="#E6E1E5"/>
+
+      <circle cx="150" cy="110" r="26" fill="#EADDFF"/>
+      <g transform="translate(150,112)">
+        <path d="M-7 0 v-5 a7 7 0 0 1 14 0 v5" fill="none" stroke="#21005D" stroke-width="3"/>
+        <rect x="-10" y="0" width="20" height="15" rx="3" fill="#21005D"/>
+      </g>
+
+      <text x="24" y="168" font-size="11" fill="#49454F">FindIt is an offline-first messenger. No data</text>
+      <text x="24" y="184" font-size="11" fill="#49454F">is transferred until you agree to these terms.</text>
+
+      <text x="24" y="214" font-size="12" font-weight="700" fill="#1C1B1F">What leaves your device</text>
+      <text x="24" y="232" font-size="11" fill="#49454F">Only your signed public identity and end-to-</text>
+      <text x="24" y="248" font-size="11" fill="#49454F">end encrypted messages.</text>
+
+      <text x="24" y="278" font-size="12" font-weight="700" fill="#1C1B1F">One switch, off by default</text>
+      <text x="24" y="296" font-size="11" fill="#49454F">While it is off the app is radio silent.</text>
+
+      <text x="24" y="326" font-size="12" font-weight="700" fill="#1C1B1F">Prototype, not a product</text>
+      <text x="24" y="344" font-size="11" fill="#49454F">Do not rely on it for anything safety-critical.</text>
+
+      <rect x="24" y="392" width="16" height="16" rx="3" fill="#6750A4"/>
+      <path d="M28 400 l3 3 5 -6" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+      <text x="48" y="405" font-size="11" fill="#1C1B1F">I have read and agree.</text>
+
+      <line x1="0" y1="424" x2="300" y2="424" stroke="#E6E1E5"/>
+      <rect x="24" y="440" width="252" height="42" rx="21" fill="#6750A4"/>
+      <text x="150" y="466" font-size="13" font-weight="600" fill="#FFFFFF" text-anchor="middle">Agree and continue</text>
+      <text x="150" y="506" font-size="10" fill="#79747E" text-anchor="middle">Declining keeps the app here — nothing is sent.</text>
+    </g>
+
+    <!-- ============ 2. Radio silent ============ -->
+    <g transform="translate(390,36)">
+      <rect width="300" height="600" rx="28" fill="#FFFFFF" stroke="#E6E1E5" filter="url(#soft)"/>
+
+      <circle cx="150" cy="150" r="26" fill="#E7E0EC"/>
+      <g transform="translate(150,150)" stroke="#49454F" stroke-width="3" fill="none" stroke-linecap="round">
+        <path d="M-14 -3 a20 20 0 0 1 28 0"/>
+        <path d="M-8 3 a11 11 0 0 1 16 0"/>
+        <circle cx="0" cy="10" r="1.8" fill="#49454F" stroke="none"/>
+        <line x1="-15" y1="-14" x2="15" y2="15"/>
+      </g>
+
+      <text x="150" y="212" font-size="16" font-weight="700" fill="#1C1B1F" text-anchor="middle">FindIt is radio silent</text>
+      <text x="150" y="240" font-size="11" fill="#49454F" text-anchor="middle">This is the only switch. While it is off,</text>
+      <text x="150" y="256" font-size="11" fill="#49454F" text-anchor="middle">nothing is discovered, sent or received.</text>
+
+      <rect x="24" y="300" width="252" height="80" rx="12" fill="#F7F2FA" stroke="#E6E1E5"/>
+      <text x="44" y="334" font-size="14" font-weight="700" fill="#1C1B1F">FindIt is off</text>
+      <text x="44" y="354" font-size="11" fill="#79747E">Use the radio</text>
+      <rect x="216" y="326" width="44" height="24" rx="12" fill="#E7E0EC" stroke="#79747E"/>
+      <circle cx="228" cy="338" r="9" fill="#FFFFFF" stroke="#79747E"/>
+
+      <text x="150" y="424" font-size="10" fill="#79747E" text-anchor="middle">Nothing else is reachable until you turn it on.</text>
+    </g>
+
+    <!-- ============ 3. Chat ============ -->
+    <g transform="translate(720,36)">
+      <rect width="300" height="600" rx="28" fill="#FFFFFF" stroke="#E6E1E5" filter="url(#soft)"/>
+      <text x="24" y="40" font-size="15" font-weight="700" fill="#1C1B1F">Ada</text>
+      <text x="24" y="56" font-size="10" fill="#79747E">Verified friend</text>
+      <line x1="0" y1="68" x2="300" y2="68" stroke="#E6E1E5"/>
+
+      <rect x="120" y="92" width="156" height="38" rx="16" fill="#6750A4"/>
+      <text x="198" y="116" font-size="11" fill="#FFFFFF" text-anchor="middle">Are you nearby?</text>
+
+      <rect x="24" y="146" width="150" height="38" rx="16" fill="#E7E0EC"/>
+      <text x="99" y="170" font-size="11" fill="#1C1B1F" text-anchor="middle">Yes! Sending a PNG</text>
+
+      <rect x="24" y="200" width="150" height="110" rx="14" fill="#EADDFF"/>
+      <g transform="translate(99,252)">
+        <rect x="-34" y="-24" width="68" height="48" rx="8" fill="#6750A4" opacity="0.35"/>
+        <circle cx="-14" cy="-6" r="6" fill="#FFFFFF"/>
+        <path d="M-34 16 L-12 -4 L2 10 L14 -2 L34 16 Z" fill="#FFFFFF" opacity="0.85"/>
+      </g>
+      <text x="150" y="298" font-size="10" font-weight="600" fill="#21005D" text-anchor="middle">PNG</text>
+
+      <rect x="150" y="326" width="126" height="38" rx="16" fill="#6750A4"/>
+      <text x="213" y="350" font-size="11" fill="#FFFFFF" text-anchor="middle">Got it ✓</text>
+
+      <rect x="16" y="536" width="268" height="44" rx="22" fill="#F7F2FA" stroke="#E6E1E5"/>
+      <text x="40" y="563" font-size="11" fill="#79747E">Message</text>
+      <circle cx="262" cy="558" r="16" fill="#6750A4"/>
+      <path d="M255 558 l13 -5 -5 13 -2 -6 z" fill="#FFFFFF"/>
+    </g>
+
+    <text x="210" y="676" font-size="13" font-weight="600" fill="#49454F" text-anchor="middle">1. Accept the terms</text>
+    <text x="540" y="676" font-size="13" font-weight="600" fill="#49454F" text-anchor="middle">2. Flip the one switch</text>
+    <text x="870" y="676" font-size="13" font-weight="600" fill="#49454F" text-anchor="middle">3. Chat — text &amp; PNG</text>
+  </g>
+</svg>
