@@ -1,0 +1,15 @@
+# Normalize line endings so builds are identical on Windows, macOS and Linux.
+* text=auto eol=lf
+
+# Windows scripts must stay CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary-ish assets Git should never try to merge or re-encode.
+*.png binary
+*.jpg binary
+*.ico binary
+*.jar binary
+*.keystore binary
+*.jks binary

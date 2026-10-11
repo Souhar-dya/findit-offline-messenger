@@ -1,0 +1,58 @@
+name: findit
+description: >-
+  FindIt - a privacy-focused, decentralized, offline-first messenger that
+  exchanges text and PNG messages using store-carry-forward routing over a
+  replaceable peer-to-peer transport.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: ">=3.29.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management + dependency injection.
+  provider: ^6.1.5
+
+  # Local persistence.
+  sqflite: ^2.4.4
+  path: ^1.9.1
+  path_provider: ^2.1.6
+
+  # Cryptography (Ed25519, X25519, AES-GCM, HKDF, SHA-256).
+  cryptography: ^2.9.0
+
+  # Compact binary wire envelopes.
+  cbor: ^6.5.1
+
+  # Identity QR codes.
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.4.2
+
+  # Platform-backed secret storage.
+  flutter_secure_storage: ^11.2.0
+
+  # Utilities.
+  uuid: ^4.6.0
+  collection: ^1.19.1
+
+  # Attachment selection (PNG only).
+  image_picker: ^1.2.4
+  file_picker: ^13.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Desktop / host-side SQLite for fast unit tests.
+  sqflite_common_ffi: ^2.4.3
+  sqlite3: ^3.7.0
+
+flutter:
+  uses-material-design: true
