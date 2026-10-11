@@ -4,7 +4,7 @@ description: >-
   exchanges text and PNG messages using store-carry-forward routing over a
   replaceable peer-to-peer transport.
 publish_to: "none"
-version: 0.2.1+3
+version: 0.3.0+4
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
