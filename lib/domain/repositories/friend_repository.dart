@@ -39,6 +39,9 @@ abstract class FriendRepository {
 
   Future<void> updateRequestState(String requestId, FriendRequestState state);
 
+  /// Deletes a request row entirely (used when cancelling an outgoing request).
+  Future<void> deleteRequest(String requestId);
+
   /// Expires pending requests past [nowMs]; returns the count affected.
   Future<int> expireRequests(int nowMs);
 

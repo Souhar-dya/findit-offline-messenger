@@ -112,6 +112,14 @@ class ChatMessage {
 
   bool isExpiredAt(int nowMs) => nowMs >= expiresAtMs;
 
+  /// When *this* device learned of the message: the local receive time for
+  /// inbound messages, and the local creation time for outgoing ones.
+  ///
+  /// Ordering and display use this single local clock, never the sender's, so
+  /// a small clock difference between two phones can never make a conversation
+  /// read out of order.
+  int get localTimestampMs => receivedAtMs ?? createdAtMs;
+
   /// Size of the stored payload, used for storage-quota accounting.
   int get payloadBytes => imageBytes?.length ?? (text?.length ?? 0);
 

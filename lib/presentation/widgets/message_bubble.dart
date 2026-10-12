@@ -17,7 +17,7 @@ class MessageBubble extends StatelessWidget {
       case MessageStatus.queued:
         return 'Sending…';
       case MessageStatus.unconfirmed:
-        return 'Delivery unconfirmed';
+        return 'Sent';
       case MessageStatus.delivered:
         return 'Delivered';
       case MessageStatus.received:
@@ -26,6 +26,23 @@ class MessageBubble extends StatelessWidget {
         return 'Expired';
       case MessageStatus.failed:
         return 'Failed';
+    }
+  }
+
+  IconData get _statusIcon {
+    switch (message.status) {
+      case MessageStatus.delivered:
+        return Icons.done_all;
+      case MessageStatus.unconfirmed:
+        return Icons.done;
+      case MessageStatus.failed:
+        return Icons.error_outline;
+      case MessageStatus.expired:
+        return Icons.timer_off_outlined;
+      case MessageStatus.pending:
+      case MessageStatus.queued:
+      case MessageStatus.received:
+        return Icons.schedule;
     }
   }
 
@@ -70,19 +87,14 @@ class MessageBubble extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
-                  formatTimestamp(message.createdAtMs),
+                  formatTimestamp(message.localTimestampMs),
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
                 if (_outgoing)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        message.status == MessageStatus.delivered
-                            ? Icons.done_all
-                            : Icons.schedule,
-                        size: 14,
-                      ),
+                      Icon(_statusIcon, size: 14),
                       const SizedBox(width: 4),
                       Text(
                         _statusLabel,

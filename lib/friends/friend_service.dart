@@ -262,6 +262,37 @@ class FriendService {
     if (friend != null) _friendshipChanges.add(friend);
   }
 
+  /// Cancels an outgoing request that is still awaiting a reply.
+  ///
+  /// The request row is deleted so a later request from either side is a fresh
+  /// one, and the local contact entry is dropped when it only existed for this
+  /// pending request.
+  Future<void> cancelRequest(FriendRequestRecord request) async {
+    if (request.direction != FriendRequestDirection.outgoing) {
+      throw const StateTransitionException(
+        'Only outgoing requests can be cancelled',
+      );
+    }
+    await _friends.deleteRequest(request.requestId);
+    final friend = await _friends.findFriend(request.toId);
+    if (friend != null && friend.status == FriendStatus.pendingOutgoing) {
+      await _friends.deleteFriend(request.toId);
+    }
+  }
+
+  /// Removes an accepted contact from this device.
+  ///
+  /// The verified identity record is kept so the chat history stays readable;
+  /// only the friendship (and any pending request between the two) is dropped.
+  Future<void> removeFriend(String identityId) async {
+    await _friends.deleteFriend(identityId);
+    for (final request in await _friends.requestsForPeer(identityId)) {
+      if (request.state == FriendRequestState.pending) {
+        await _friends.deleteRequest(request.requestId);
+      }
+    }
+  }
+
   /// Re-enqueues still-pending outgoing requests. This never creates a new
   /// logical request: the deterministic bundle id is reused.
   Future<int> retryPendingRequests() async {

@@ -26,6 +26,7 @@ class FriendsController extends ChangeNotifier {
 
   List<FriendRecord> _friends = const [];
   List<FriendRequestRecord> _pending = const [];
+  List<FriendRequestRecord> _outgoing = const [];
   List<KnownIdentity> _known = const [];
   bool _loading = false;
   String? _error;
@@ -33,6 +34,7 @@ class FriendsController extends ChangeNotifier {
 
   List<FriendRecord> get friends => _friends;
   List<FriendRequestRecord> get pendingRequests => _pending;
+  List<FriendRequestRecord> get outgoingRequests => _outgoing;
   List<KnownIdentity> get knownIdentities => _known;
   bool get loading => _loading;
   String? get error => _error;
@@ -48,11 +50,19 @@ class FriendsController extends ChangeNotifier {
       _friends = all
           .where((friend) => friend.status != FriendStatus.declined)
           .toList();
-      _pending = (await _services.core.friends.allRequests())
+      final requests = await _services.core.friends.allRequests();
+      _pending = requests
           .where(
             (request) =>
                 request.state == FriendRequestState.pending &&
                 request.direction == FriendRequestDirection.incoming,
+          )
+          .toList();
+      _outgoing = requests
+          .where(
+            (request) =>
+                request.state == FriendRequestState.pending &&
+                request.direction == FriendRequestDirection.outgoing,
           )
           .toList();
       _known = await _services.core.identities.allKnown();
@@ -138,6 +148,37 @@ class FriendsController extends ChangeNotifier {
   Future<void> setBlocked(String identityId, bool blocked) async {
     try {
       await _services.core.friendService.block(identityId, blocked: blocked);
+      await refresh();
+    } on AppException catch (error) {
+      _error = error.message;
+      notifyListeners();
+    }
+  }
+
+  Future<void> cancel(FriendRequestRecord request) async {
+    try {
+      await _services.core.friendService.cancelRequest(request);
+      await refresh();
+    } on AppException catch (error) {
+      _error = error.message;
+      notifyListeners();
+    }
+  }
+
+  /// Cancels whatever outgoing request we still have pending to [peerId].
+  Future<void> cancelRequestTo(String peerId) async {
+    for (final request in _outgoing) {
+      if (request.toId == peerId) {
+        await cancel(request);
+        return;
+      }
+    }
+  }
+
+  Future<void> removeFriend(String peerId) async {
+    try {
+      await _services.core.friendService.removeFriend(peerId);
+      _status = 'Contact removed.';
       await refresh();
     } on AppException catch (error) {
       _error = error.message;

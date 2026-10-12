@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/di/app_services.dart';
+import '../../domain/entities/chat_message.dart';
 import '../controllers/conversation_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/message_bubble.dart';
@@ -138,9 +139,25 @@ class _ConversationBodyState extends State<_ConversationBody> {
     });
   }
 
+  /// Flattens messages into bubbles with a day divider before each new day.
+  List<Object> _items(List<ChatMessage> messages) {
+    final items = <Object>[];
+    int? previousMs;
+    for (final message in messages) {
+      final ms = message.localTimestampMs;
+      if (previousMs == null || !isSameLocalDay(previousMs, ms)) {
+        items.add(formatDayLabel(ms));
+      }
+      items.add(message);
+      previousMs = ms;
+    }
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<ConversationController>();
+    final items = _items(controller.messages);
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -175,9 +192,12 @@ class _ConversationBodyState extends State<_ConversationBody> {
                 : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.all(12),
-                    itemCount: controller.messages.length,
-                    itemBuilder: (context, index) =>
-                        MessageBubble(message: controller.messages[index]),
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      if (item is String) return _DayDivider(label: item);
+                      return MessageBubble(message: item as ChatMessage);
+                    },
                   ),
           ),
           _Composer(
@@ -250,6 +270,36 @@ class _Composer extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A centred date divider shown between messages from different days.
+class _DayDivider extends StatelessWidget {
+  const _DayDivider({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          const Expanded(child: Divider()),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: scheme.outline),
+            ),
+          ),
+          const Expanded(child: Divider()),
+        ],
       ),
     );
   }

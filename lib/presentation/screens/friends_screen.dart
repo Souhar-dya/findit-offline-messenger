@@ -31,7 +31,7 @@ class FriendsScreen extends StatelessWidget {
                 message: controller.status!,
                 onDismiss: controller.clearMessages,
               ),
-            ..._pending(context, controller),
+            ..._requests(context, controller),
             _friendsSection(context, controller),
             const SizedBox(height: 80),
           ],
@@ -45,36 +45,67 @@ class FriendsScreen extends StatelessWidget {
     );
   }
 
-  List<Widget> _pending(BuildContext context, FriendsController controller) {
-    if (controller.pendingRequests.isEmpty) return const [];
-    return [
-      Text('Requests', style: Theme.of(context).textTheme.titleMedium),
-      const SizedBox(height: 8),
-      for (final request in controller.pendingRequests)
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.person_add),
-            title: Text(request.peerDisplayName ?? _shortId(request.fromId)),
-            subtitle: Text(
-              'Requested you · expires ${formatTimestamp(request.expiresAtMs)}',
-            ),
-            trailing: Wrap(
-              spacing: 4,
-              children: [
-                TextButton(
-                  onPressed: () => controller.decline(request),
-                  child: const Text('Decline'),
-                ),
-                FilledButton(
-                  onPressed: () => controller.accept(request),
-                  child: const Text('Accept'),
-                ),
-              ],
+  List<Widget> _requests(BuildContext context, FriendsController controller) {
+    final widgets = <Widget>[];
+    final incoming = controller.pendingRequests;
+    final outgoing = controller.outgoingRequests;
+    if (incoming.isNotEmpty) {
+      widgets.add(
+        Text('Requests', style: Theme.of(context).textTheme.titleMedium),
+      );
+      widgets.add(const SizedBox(height: 8));
+      for (final request in incoming) {
+        widgets.add(
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.person_add),
+              title: Text(request.peerDisplayName ?? _shortId(request.fromId)),
+              subtitle: Text(
+                'Requested you · expires '
+                '${formatTimestamp(request.expiresAtMs)}',
+              ),
+              trailing: Wrap(
+                spacing: 4,
+                children: [
+                  TextButton(
+                    onPressed: () => controller.decline(request),
+                    child: const Text('Decline'),
+                  ),
+                  FilledButton(
+                    onPressed: () => controller.accept(request),
+                    child: const Text('Accept'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      const SizedBox(height: 16),
-    ];
+        );
+      }
+      widgets.add(const SizedBox(height: 16));
+    }
+    if (outgoing.isNotEmpty) {
+      widgets.add(
+        Text('Sent requests', style: Theme.of(context).textTheme.titleMedium),
+      );
+      widgets.add(const SizedBox(height: 8));
+      for (final request in outgoing) {
+        widgets.add(
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.hourglass_top),
+              title: Text(request.peerDisplayName ?? _shortId(request.toId)),
+              subtitle: const Text('Waiting for them to accept'),
+              trailing: TextButton(
+                onPressed: () => controller.cancel(request),
+                child: const Text('Cancel'),
+              ),
+            ),
+          ),
+        );
+      }
+      widgets.add(const SizedBox(height: 16));
+    }
+    return widgets;
   }
 
   Widget _friendsSection(BuildContext context, FriendsController controller) {
@@ -103,10 +134,44 @@ class FriendsScreen extends StatelessWidget {
               friend.peerId,
               friend.status != FriendStatus.blocked,
             ),
+            onRemove: () => _confirmRemove(context, controller, friend),
+            onCancel: friend.status == FriendStatus.pendingOutgoing
+                ? () => controller.cancelRequestTo(friend.peerId)
+                : null,
             onCopyId: () => _copyId(context, friend.peerId),
           ),
       ],
     );
+  }
+
+  Future<void> _confirmRemove(
+    BuildContext context,
+    FriendsController controller,
+    FriendRecord friend,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove contact?'),
+        content: Text(
+          '${friend.displayName} will be removed from your contacts. '
+          'Your chat history stays on this device.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await controller.removeFriend(friend.peerId);
+    }
   }
 
   void _openChat(BuildContext context, FriendRecord friend) {
@@ -231,13 +296,17 @@ class _FriendTile extends StatelessWidget {
     required this.friend,
     required this.onChat,
     required this.onToggleBlock,
+    required this.onRemove,
     required this.onCopyId,
+    this.onCancel,
   });
 
   final FriendRecord friend;
   final VoidCallback onChat;
   final VoidCallback onToggleBlock;
+  final VoidCallback onRemove;
   final VoidCallback onCopyId;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -255,6 +324,10 @@ class _FriendTile extends StatelessWidget {
             switch (value) {
               case 'chat':
                 onChat();
+              case 'cancel':
+                onCancel?.call();
+              case 'remove':
+                onRemove();
               case 'block':
                 onToggleBlock();
               case 'copy':
@@ -264,6 +337,16 @@ class _FriendTile extends StatelessWidget {
           itemBuilder: (context) => [
             if (friend.isAccepted)
               const PopupMenuItem(value: 'chat', child: Text('Open chat')),
+            if (friend.status == FriendStatus.pendingOutgoing)
+              const PopupMenuItem(
+                value: 'cancel',
+                child: Text('Cancel request'),
+              ),
+            if (friend.isAccepted || blocked)
+              const PopupMenuItem(
+                value: 'remove',
+                child: Text('Remove contact'),
+              ),
             PopupMenuItem(
               value: 'block',
               child: Text(blocked ? 'Unblock' : 'Block'),

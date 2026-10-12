@@ -256,18 +256,63 @@ String formatBytes(int bytes) {
   return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 }
 
-/// Formats an epoch-millis timestamp as a short local time / date.
+/// Formats an epoch-millis timestamp as a short, human local time.
+///
+/// Today shows just the clock time, yesterday is prefixed, and older messages
+/// use a readable date instead of an ISO-style string.
 String formatTimestamp(int epochMs) {
   final time = DateTime.fromMillisecondsSinceEpoch(epochMs);
   final now = DateTime.now();
-  final sameDay =
-      time.year == now.year && time.month == now.month && time.day == now.day;
-  final hh = time.hour.toString().padLeft(2, '0');
-  final mm = time.minute.toString().padLeft(2, '0');
-  if (sameDay) return '$hh:$mm';
-  return '${time.year}-${time.month.toString().padLeft(2, '0')}-'
-      '${time.day.toString().padLeft(2, '0')} $hh:$mm';
+  final hm = _hhmm(time);
+  final dayDiff = _dayNumber(now) - _dayNumber(time);
+  if (dayDiff == 0) return hm;
+  if (dayDiff == 1) return 'Yesterday $hm';
+  if (time.year == now.year) return '${time.day} ${_monthName(time.month)} $hm';
+  return '${time.day} ${_monthName(time.month)} ${time.year} $hm';
 }
+
+/// A date-divider label for the conversation list: Today / Yesterday / date.
+String formatDayLabel(int epochMs) {
+  final time = DateTime.fromMillisecondsSinceEpoch(epochMs);
+  final now = DateTime.now();
+  final dayDiff = _dayNumber(now) - _dayNumber(time);
+  if (dayDiff == 0) return 'Today';
+  if (dayDiff == 1) return 'Yesterday';
+  if (time.year == now.year) return '${time.day} ${_monthName(time.month)}';
+  return '${time.day} ${_monthName(time.month)} ${time.year}';
+}
+
+/// Whether two epoch-millis values fall on the same local calendar day.
+bool isSameLocalDay(int aMs, int bMs) {
+  final a = DateTime.fromMillisecondsSinceEpoch(aMs);
+  final b = DateTime.fromMillisecondsSinceEpoch(bMs);
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+String _hhmm(DateTime time) =>
+    '${time.hour.toString().padLeft(2, '0')}:'
+    '${time.minute.toString().padLeft(2, '0')}';
+
+int _dayNumber(DateTime time) =>
+    DateTime(time.year, time.month, time.day).millisecondsSinceEpoch ~/
+    Duration.millisecondsPerDay;
+
+const List<String> _months = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+String _monthName(int month) => _months[month - 1];
 
 /// Remaining lifetime of a message, or 'expired'.
 String formatRemaining(int expiresAtMs) {

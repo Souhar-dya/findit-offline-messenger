@@ -14,13 +14,20 @@ class ConversationController extends ChangeNotifier {
     _incoming = _services.core.messageService.incomingMessages.listen((
       message,
     ) {
-      if (message.peerId == peerId) refresh();
+      if (message.peerId == peerId) {
+        // This conversation is on screen, so the new message is read the
+        // moment it arrives: clear the unread badge and refresh the list.
+        unawaited(markRead());
+        refresh();
+      }
     });
+    _changes = _services.core.messageChanges.stream.listen((_) => refresh());
   }
 
   final AppServices _services;
   final String peerId;
   StreamSubscription<Object?>? _incoming;
+  StreamSubscription<Object?>? _changes;
 
   List<ChatMessage> _messages = const [];
   FriendRecord? _friend;
@@ -125,6 +132,7 @@ class ConversationController extends ChangeNotifier {
   @override
   void dispose() {
     _incoming?.cancel();
+    _changes?.cancel();
     super.dispose();
   }
 }

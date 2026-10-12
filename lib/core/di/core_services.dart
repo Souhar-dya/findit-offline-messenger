@@ -19,6 +19,7 @@ import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/receipt_repository.dart';
 import '../../friends/friend_service.dart';
 import '../../messaging/bundle_outbox.dart';
+import '../../messaging/message_changes.dart';
 import '../../messaging/message_service.dart';
 import '../../messaging/receipt_service.dart';
 import '../../messaging/signed_bundle.dart';
@@ -49,6 +50,7 @@ class CoreServices {
     required this.settings,
     required this.codec,
     required this.outbox,
+    required this.messageChanges,
     required this.friendService,
     required this.receiptService,
     required this.messageService,
@@ -75,6 +77,9 @@ class CoreServices {
 
   final BundleCodec codec;
   final BundleOutbox outbox;
+
+  /// Coarse "messages changed" signal so chat screens refresh immediately.
+  final MessageChanges messageChanges;
 
   final FriendService friendService;
   final ReceiptService receiptService;
@@ -118,6 +123,7 @@ class CoreServices {
       clock: clock,
       config: config,
     );
+    final messageChanges = MessageChanges();
     final friendService = FriendService(
       friends: friends,
       identities: identities,
@@ -134,6 +140,7 @@ class CoreServices {
       identityHolder: identityHolder,
       clock: clock,
       config: config,
+      changes: messageChanges,
     );
     final messageService = MessageService(
       messages: messages,
@@ -143,6 +150,7 @@ class CoreServices {
       identityHolder: identityHolder,
       clock: clock,
       config: config,
+      changes: messageChanges,
     );
     final routingEngine = RoutingEngine(
       transport: transport,
@@ -184,6 +192,7 @@ class CoreServices {
       settings: settings,
       codec: codec,
       outbox: outbox,
+      messageChanges: messageChanges,
       friendService: friendService,
       receiptService: receiptService,
       messageService: messageService,
@@ -219,6 +228,7 @@ class CoreServices {
     await messageService.dispose();
     await friendService.dispose();
     await outbox.dispose();
+    await messageChanges.dispose();
     await database.close();
   }
 }

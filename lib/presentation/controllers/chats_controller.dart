@@ -8,13 +8,11 @@ import '../../domain/entities/conversation_summary.dart';
 /// Backs the Chats screen: the list of conversations ordered by recency.
 class ChatsController extends ChangeNotifier {
   ChatsController(this._services) {
-    _messages = _services.core.messageService.incomingMessages.listen(
-      (_) => refresh(),
-    );
+    _changes = _services.core.messageChanges.stream.listen((_) => refresh());
   }
 
   final AppServices _services;
-  StreamSubscription<Object?>? _messages;
+  StreamSubscription<Object?>? _changes;
 
   List<ConversationSummary> _conversations = const [];
   bool _loading = false;
@@ -41,7 +39,7 @@ class ChatsController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _messages?.cancel();
+    _changes?.cancel();
     super.dispose();
   }
 }

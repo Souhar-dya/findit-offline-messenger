@@ -14,6 +14,7 @@ import '../domain/entities/known_identity.dart';
 import '../domain/repositories/identity_repository.dart';
 import '../domain/repositories/message_repository.dart';
 import '../messaging/bundle_outbox.dart';
+import '../messaging/message_changes.dart';
 import '../messaging/png_validator.dart';
 import '../messaging/receipt_service.dart';
 import '../messaging/signed_bundle.dart';
@@ -36,13 +37,15 @@ class MessageService {
     required IdentityHolder identityHolder,
     required Clock clock,
     required AppConfig config,
+    required MessageChanges changes,
   }) : _messages = messages,
        _identities = identities,
        _outbox = outbox,
        _receipts = receipts,
        _identityHolder = identityHolder,
        _clock = clock,
-       _config = config;
+       _config = config,
+       _changes = changes;
 
   final MessageRepository _messages;
   final IdentityRepository _identities;
@@ -51,6 +54,7 @@ class MessageService {
   final IdentityHolder _identityHolder;
   final Clock _clock;
   final AppConfig _config;
+  final MessageChanges _changes;
 
   final StreamController<ChatMessage> _incoming =
       StreamController<ChatMessage>.broadcast();
@@ -167,6 +171,7 @@ class MessageService {
       expiresAtMs: expiresAt,
       payload: buildPayload(idHex, createdAt, expiresAt),
     );
+    _changes.notify();
     return message;
   }
 
@@ -201,6 +206,7 @@ class MessageService {
       }
       count++;
     }
+    if (count > 0) _changes.notify();
     return count;
   }
 
@@ -278,11 +284,14 @@ class MessageService {
     await _receipts.sendReceiptFor(message: message, recipient: sender);
     if (!inserted) return MessageInboundOutcome.duplicate;
     _incoming.add(message);
+    _changes.notify();
     return MessageInboundOutcome.stored;
   }
 
-  Future<void> markRead(String peerId) =>
-      _messages.markConversationRead(peerId, _nowMs);
+  Future<void> markRead(String peerId) async {
+    await _messages.markConversationRead(peerId, _nowMs);
+    _changes.notify();
+  }
 
   /// Marks an outgoing message as relayed at least once (not yet confirmed).
   Future<void> markRelayed(String messageIdHex) async {
@@ -292,6 +301,7 @@ class MessageService {
     if (message.status == MessageStatus.queued ||
         message.status == MessageStatus.pending) {
       await _messages.updateStatus(messageIdHex, MessageStatus.unconfirmed);
+      _changes.notify();
     }
   }
 

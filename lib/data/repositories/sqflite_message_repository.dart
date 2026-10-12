@@ -98,7 +98,9 @@ class SqfliteMessageRepository implements MessageRepository {
       'messages',
       where: 'conversation_id = ?',
       whereArgs: [peerId],
-      orderBy: 'created_at_ms ASC',
+      // Order by the local clock (receive time for inbound, creation time for
+      // outbound) so a device whose clock differs can never interleave.
+      orderBy: 'COALESCE(received_at_ms, created_at_ms) ASC, created_at_ms ASC',
       limit: limit,
     );
     return rows.map(_fromRow).toList();
@@ -241,6 +243,9 @@ class SqfliteMessageRepository implements MessageRepository {
     final preview = message.payloadType == MessagePayloadType.png
         ? 'PNG image'
         : (message.text ?? '');
+    // Use the local observation time so the Chats list orders by the same
+    // clock as the conversation itself.
+    final observedAt = message.receivedAtMs ?? message.createdAtMs;
     await txn.rawInsert(
       '''
       INSERT INTO conversations(peer_id, last_message_id, last_message_at_ms, last_preview, updated_at_ms)
@@ -255,9 +260,9 @@ class SqfliteMessageRepository implements MessageRepository {
       [
         message.peerId,
         message.id,
-        message.createdAtMs,
+        observedAt,
         preview,
-        message.createdAtMs,
+        observedAt,
       ],
     );
   }

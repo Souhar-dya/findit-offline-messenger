@@ -155,6 +155,70 @@ void main() {
         MessageStatus.queued,
       );
     });
+
+    test('notifies listeners when sent and when confirmed delivered', () async {
+      final events = <void>[];
+      final subscription = alice.core.messageChanges.stream.listen(events.add);
+      addTearDown(subscription.cancel);
+
+      final message = await alice.core.messageService.sendText(
+        recipient: bob.identity!.record,
+        text: 'ping',
+      );
+      await bob.core.messageService.handleIncoming(
+        await bob.open((await alice.storedBundle(message.id)).bytes),
+      );
+      final receipt = await firstBundleOfType(bob, EnvelopeType.deliveryReceipt);
+      await alice.core.receiptService.handleIncoming(
+        await alice.open(receipt.bytes),
+      );
+      await pumpEventQueue();
+
+      // One notification for the send and one for the delivered receipt.
+      expect(events.length, greaterThanOrEqualTo(2));
+      expect(
+        (await alice.core.messages.find(message.id))!.status,
+        MessageStatus.delivered,
+      );
+    });
+  });
+
+  group('Conversation ordering', () {
+    test('orders by the local clock, not the sender clock', () async {
+      // Bob's clock is behind: his reply is created "earlier" but arrives after
+      // Alice's own message. Ordering must follow what this device observed.
+      final mine = ChatMessage(
+        id: 'aa000000000000000000000000000001',
+        senderId: alice.id,
+        recipientId: bob.id,
+        peerId: bob.id,
+        direction: MessageDirection.outgoing,
+        status: MessageStatus.delivered,
+        payloadType: MessagePayloadType.text,
+        createdAtMs: 2000,
+        expiresAtMs: 999999,
+        text: 'mine',
+      );
+      final theirs = ChatMessage(
+        id: 'aa000000000000000000000000000002',
+        senderId: bob.id,
+        recipientId: alice.id,
+        peerId: bob.id,
+        direction: MessageDirection.incoming,
+        status: MessageStatus.received,
+        payloadType: MessagePayloadType.text,
+        createdAtMs: 1500,
+        expiresAtMs: 999999,
+        text: 'theirs',
+        receivedAtMs: 2500,
+      );
+
+      expect(await alice.core.messages.insertIfAbsent(theirs), isTrue);
+      expect(await alice.core.messages.insertIfAbsent(mine), isTrue);
+
+      final ordered = await alice.core.messages.conversation(bob.id);
+      expect(ordered.map((message) => message.id), [mine.id, theirs.id]);
+    });
   });
 
   group('TTL and validation', () {

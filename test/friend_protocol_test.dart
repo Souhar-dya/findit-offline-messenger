@@ -500,4 +500,67 @@ void main() {
       );
     });
   });
+
+  group('Cancelling and removing', () {
+    test('cancels a still-pending outgoing request', () async {
+      await alice.core.friendService.sendRequest(peer: bob.identity!.record);
+      final request = await outgoingRequest(alice, bob);
+      expect(
+        (await alice.core.friends.findFriend(bob.id))!.status,
+        FriendStatus.pendingOutgoing,
+      );
+
+      await alice.core.friendService.cancelRequest(request);
+
+      expect(await alice.core.friends.findRequest(request.requestId), isNull);
+      // The contact entry that existed only for the pending request is gone.
+      expect(await alice.core.friends.findFriend(bob.id), isNull);
+    });
+
+    test('refuses to cancel an incoming request', () async {
+      await alice.core.friendService.sendRequest(peer: bob.identity!.record);
+      final request = await outgoingRequest(alice, bob);
+      await bob.core.friendService.handleIncoming(
+        await deliverFriendBundle(
+          from: alice,
+          to: bob,
+          type: EnvelopeType.friendRequest,
+          requestId: request.requestId,
+        ),
+      );
+      final incoming = await incomingRequest(bob, alice);
+      expect(
+        () => bob.core.friendService.cancelRequest(incoming),
+        throwsA(isA<StateTransitionException>()),
+      );
+    });
+
+    test('removes an accepted contact but keeps the identity', () async {
+      await alice.core.friendService.sendRequest(peer: bob.identity!.record);
+      final request = await outgoingRequest(alice, bob);
+      await bob.core.friendService.handleIncoming(
+        await deliverFriendBundle(
+          from: alice,
+          to: bob,
+          type: EnvelopeType.friendRequest,
+          requestId: request.requestId,
+        ),
+      );
+      final incoming = await incomingRequest(bob, alice);
+      await bob.core.friendService.acceptRequest(
+        incoming,
+        peerRecord: alice.identity!.record,
+      );
+      expect(
+        (await bob.core.friends.findFriend(alice.id))!.status,
+        FriendStatus.accepted,
+      );
+
+      await bob.core.friendService.removeFriend(alice.id);
+
+      expect(await bob.core.friends.findFriend(alice.id), isNull);
+      // The verified identity record survives so chat history stays readable.
+      expect(await bob.core.identities.find(alice.id), isNotNull);
+    });
+  });
 }

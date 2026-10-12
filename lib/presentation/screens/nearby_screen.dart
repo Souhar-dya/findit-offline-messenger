@@ -181,9 +181,9 @@ class NearbyScreen extends StatelessWidget {
                           leading: const Icon(Icons.wifi_tethering),
                           title: Text(peer.displayNameHint ?? 'Unnamed peer'),
                           subtitle: Text('Handle ${_short(peer.peerId)}'),
-                          trailing: TextButton(
-                            onPressed: () => controller.connect(peer.peerId),
-                            child: const Text('Connect'),
+                          trailing: Text(
+                            'Auto-connect',
+                            style: Theme.of(context).textTheme.labelSmall,
                           ),
                         ),
                     ],

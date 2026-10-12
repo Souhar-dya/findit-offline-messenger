@@ -177,6 +177,16 @@ class SqfliteFriendRepository implements FriendRepository {
   }
 
   @override
+  Future<void> deleteRequest(String requestId) async {
+    final db = await _database.database;
+    await db.delete(
+      'friend_requests',
+      where: 'request_id = ?',
+      whereArgs: [requestId],
+    );
+  }
+
+  @override
   Future<int> expireRequests(int nowMs) async {
     final db = await _database.database;
     return db.update(

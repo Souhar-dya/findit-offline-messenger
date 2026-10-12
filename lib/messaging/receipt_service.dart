@@ -18,6 +18,7 @@ import '../domain/repositories/bundle_repository.dart';
 import '../domain/repositories/message_repository.dart';
 import '../domain/repositories/receipt_repository.dart';
 import '../messaging/bundle_outbox.dart';
+import '../messaging/message_changes.dart';
 import '../messaging/signed_bundle.dart';
 
 /// Authenticated delivery receipts.
@@ -34,13 +35,15 @@ class ReceiptService {
     required IdentityHolder identityHolder,
     required Clock clock,
     required AppConfig config,
+    required MessageChanges changes,
   }) : _receipts = receipts,
        _messages = messages,
        _bundles = bundles,
        _outbox = outbox,
        _identityHolder = identityHolder,
        _clock = clock,
-       _config = config;
+       _config = config,
+       _changes = changes;
 
   final ReceiptRepository _receipts;
   final MessageRepository _messages;
@@ -49,6 +52,7 @@ class ReceiptService {
   final IdentityHolder _identityHolder;
   final Clock _clock;
   final AppConfig _config;
+  final MessageChanges _changes;
 
   int get _nowMs => _clock.now().millisecondsSinceEpoch;
 
@@ -180,6 +184,7 @@ class ReceiptService {
         expiresAtMs: _nowMs + _config.tombstoneRetention.inMilliseconds,
       ),
     );
+    _changes.notify();
     return ReceiptInboundResult.delivered;
   }
 
@@ -216,6 +221,7 @@ class ReceiptService {
       );
       updated++;
     }
+    if (updated > 0) _changes.notify();
     return updated;
   }
 
