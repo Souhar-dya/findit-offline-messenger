@@ -35,6 +35,11 @@ abstract class MessageRepository {
 
   Future<int> totalPayloadBytes();
 
+  /// Deletes the oldest messages first (first in, first out) until the stored
+  /// payload fits within [maxPayloadBytes]. Returns the number of messages
+  /// removed. A no-op when the payload already fits.
+  Future<int> evictOldest(int maxPayloadBytes);
+
   /// Marks messages past their expiry, reclaims their payload bytes and writes
   /// tombstones so stale copies cannot be reintroduced.
   /// Returns the number of messages expired.

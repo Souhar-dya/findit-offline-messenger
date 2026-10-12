@@ -179,15 +179,6 @@ class AppServices extends ChangeNotifier {
     }
   }
 
-  /// Runs one maintenance pass and returns a human-readable summary.
-  Future<String> runMaintenance() async {
-    final report = await core.maintenance.runOnce();
-    return '${report.messagesExpired} messages expired, '
-        '${report.bundlesExpired} bundles reclaimed, '
-        '${report.requestsExpired} requests expired, '
-        '${report.receiptsPruned} receipts pruned.';
-  }
-
   /// Starts the in-process demo peer on the simulated network, if available.
   Future<void> startDemoPeer() async {
     if (_demoPeer != null || _startingDemo) return;

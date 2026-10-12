@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:findit/core/config/app_config.dart';
 import 'package:findit/crypto/identity_service.dart';
 import 'package:findit/crypto/secret_store.dart';
 import 'package:findit/data/db/app_database.dart';
@@ -222,6 +223,45 @@ void main() {
           'SELECT COUNT(*) AS c FROM message_tombstones',
         );
         expect(after.single['c'], 2);
+      } finally {
+        await node.dispose();
+      }
+    });
+
+    test('drops the oldest messages first when storage is full', () async {
+      const config = AppConfig(defaultStorageQuotaBytes: 3000);
+      final node = await TestNode.create(config: config);
+      await node.createIdentity('Alice');
+      try {
+        final now = node.clock.now().millisecondsSinceEpoch;
+        const peerId = 'fid_peer';
+        // Five ~1 KB messages fit in a 3 KB quota only two of them short, so
+        // the two oldest must be dropped, first in first out.
+        for (var i = 0; i < 5; i++) {
+          expect(
+            await node.core.messages.insertIfAbsent(
+              ChatMessage(
+                id: 'msg-$i',
+                senderId: 'fid_sender',
+                recipientId: node.id,
+                peerId: peerId,
+                direction: MessageDirection.incoming,
+                status: MessageStatus.received,
+                payloadType: MessagePayloadType.text,
+                createdAtMs: now + i,
+                expiresAtMs: now + 3600000,
+                text: 'm$i${'x' * 998}',
+              ),
+            ),
+            isTrue,
+          );
+        }
+
+        final report = await node.core.maintenance.runOnce();
+        expect(report.messagesEvicted, 2);
+
+        final remaining = await node.core.messages.conversation(peerId);
+        expect(remaining.map((message) => message.id), ['msg-2', 'msg-3', 'msg-4']);
       } finally {
         await node.dispose();
       }

@@ -31,7 +31,7 @@ class EulaDocument {
     LegalSection(
       '2. License grant',
       'Subject to this Agreement, the Licensor grants the User a limited, '
-          'revocable, non-exclusive, non-transferable, non-sublicensable right '
+          'non-exclusive, non-transferable, non-sublicensable right '
           'to install and use one copy of the App on a mobile device the User '
           'owns or controls.\n\n'
           'The User may not: resell, rent, lease, or redistribute the App; '
@@ -99,13 +99,14 @@ class EulaDocument {
     ),
     LegalSection(
       '9. Termination',
-      'The Licensor may suspend or terminate the User\'s licence if the User '
-          'breaches this Agreement. The User may stop using the App at any '
-          'time. On termination, the User\'s right to use the App ends and the '
-          'User should delete the App from their device. Sections that by their '
-          'nature should survive (warranty disclaimer, limitation of liability, '
-          'indemnity, governing law, modification, and severability) survive '
-          'termination.',
+      'The App runs only on the User\'s own device and is openly '
+          'downloadable, so the Licensor cannot and does not remotely revoke '
+          'or disable a copy the User has already installed. This Agreement '
+          'and the licence it grants end when the User stops using the App and '
+          'deletes it. The User may stop using the App at any time. Sections '
+          'that by their nature should survive (warranty disclaimer, '
+          'limitation of liability, indemnity, governing law, modification, '
+          'and severability) survive termination.',
     ),
     LegalSection(
       '10. Governing law and venue',

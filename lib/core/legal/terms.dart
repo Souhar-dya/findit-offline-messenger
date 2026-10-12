@@ -14,7 +14,7 @@ class TermsDocument {
   TermsDocument._();
 
   /// Version of the wording below. Bump it whenever the text changes.
-  static const String version = '3.0';
+  static const String version = '3.1';
 
   static const String title = 'Acceptable Use Policy';
 
@@ -49,12 +49,13 @@ class TermsDocument {
           'delivered to another user\'s device, the developer has no ability to '
           'delete, modify, or retract it, so enforcement is limited to actions '
           'within the developer\'s own control.\n\n'
-          'Can do: terminate or suspend a user\'s licence to use the App; issue '
-          'updates that change or restrict its behaviour; refuse to relay '
-          'content for specific users when the developer\'s own device is '
-          'acting as a relay; report illegal activity to law-enforcement '
+          'Can do: issue updates that change or restrict its behaviour; refuse '
+          'to relay content for specific users when the developer\'s own device '
+          'is acting as a relay; report illegal activity to law-enforcement '
           'authorities.\n\n'
-          'Cannot do: remove content from another user\'s device; prevent '
+          'Cannot do: revoke a copy you have already downloaded (the App is '
+          'openly downloadable and runs only on your device); remove content '
+          'from another user\'s device; prevent '
           'direct communication between other users; monitor or censor the '
           'content of messages (they are end-to-end encrypted); retract '
           'messages already delivered.\n\n'
@@ -79,15 +80,17 @@ class TermsDocument {
           'developer cannot remove infringing material from other users\' '
           'devices. On a valid notice the developer will investigate the '
           'claim, take reasonable steps within its control (such as '
-          'terminating the licence of a user who repeatedly infringes), and '
-          'report the activity to the appropriate authorities where '
+          'refusing to relay content for a user who repeatedly infringes), '
+          'and report the activity to the appropriate authorities where '
           'appropriate.',
     ),
     LegalSection(
       'Enforcement',
-      'Violating this Policy is a breach of the EULA. The developer may '
-          'suspend or terminate your licence to use the App, with or without '
-          'notice depending on severity, and may report illegal activity to '
+      'Violating this Policy is a breach of the EULA. Because the App is '
+          'openly downloadable and runs only on your own device, the developer '
+          'cannot suspend, revoke, or remotely disable it. The developer may '
+          'refuse to relay your content when the developer\'s own device is '
+          'acting as a relay, and may report illegal activity to '
           'law-enforcement authorities. The developer does not and cannot '
           'remove content from other users\' devices.',
     ),

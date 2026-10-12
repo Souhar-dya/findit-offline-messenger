@@ -176,6 +176,38 @@ class SqfliteMessageRepository implements MessageRepository {
   }
 
   @override
+  Future<int> evictOldest(int maxPayloadBytes) async {
+    final db = await _database.database;
+    return db.transaction((txn) async {
+      // Only ids and sizes are read; the blobs themselves never leave SQLite.
+      final rows = await txn.rawQuery('''
+        SELECT message_id AS id,
+               COALESCE(LENGTH(image_bytes), LENGTH(text_content), 0) AS size
+        FROM messages
+        ORDER BY COALESCE(received_at_ms, created_at_ms) ASC,
+                 created_at_ms ASC,
+                 message_id ASC
+      ''');
+      var total = 0;
+      for (final row in rows) {
+        total += (row['size'] as int?) ?? 0;
+      }
+      if (total <= maxPayloadBytes) return 0;
+
+      var removed = 0;
+      for (final row in rows) {
+        if (total <= maxPayloadBytes) break;
+        final id = row['id'] as String;
+        final size = (row['size'] as int?) ?? 0;
+        await txn.delete('messages', where: 'message_id = ?', whereArgs: [id]);
+        total -= size;
+        removed++;
+      }
+      return removed;
+    });
+  }
+
+  @override
   Future<int> totalPayloadBytes() async {
     final db = await _database.database;
     final rows = await db.rawQuery('''

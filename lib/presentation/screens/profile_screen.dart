@@ -133,24 +133,18 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   '${formatBytes(settings.totalBytes)} used of '
-                  '${formatBytes(settings.quotaBytes)} '
-                  '(${formatBytes(settings.messageBytes)} messages, '
-                  '${formatBytes(settings.bundleBytes)} carried for others)',
+                  '${formatBytes(settings.quotaBytes)}',
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${settings.pendingTransfers} incomplete transfers tracked',
+                const SizedBox(height: 8),
+                const Text(
+                  'When storage fills up, FindIt automatically removes the '
+                  'oldest messages first.',
+                  style: TextStyle(fontSize: 12),
                 ),
                 if (settings.status != null) ...[
                   const SizedBox(height: 8),
                   Text(settings.status!),
                 ],
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: settings.busy ? null : settings.runMaintenance,
-                  icon: const Icon(Icons.cleaning_services),
-                  label: const Text('Run cleanup now'),
-                ),
               ],
             ),
           ),

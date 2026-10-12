@@ -4,6 +4,7 @@ import '../domain/repositories/bundle_repository.dart';
 import '../domain/repositories/message_repository.dart';
 import '../domain/repositories/receipt_repository.dart';
 import '../friends/friend_service.dart';
+import '../messaging/message_changes.dart';
 import '../messaging/message_service.dart';
 import '../messaging/receipt_service.dart';
 import 'config/app_config.dart';
@@ -13,6 +14,7 @@ import 'utils/clock.dart';
 class MaintenanceReport {
   const MaintenanceReport({
     required this.messagesExpired,
+    required this.messagesEvicted,
     required this.bundlesExpired,
     required this.requestsExpired,
     required this.receiptsPruned,
@@ -20,6 +22,9 @@ class MaintenanceReport {
   });
 
   final int messagesExpired;
+
+  /// Messages dropped, oldest first, to get back under the storage quota.
+  final int messagesEvicted;
   final int bundlesExpired;
   final int requestsExpired;
   final int receiptsPruned;
@@ -38,6 +43,7 @@ class MaintenanceService {
     required FriendService friends,
     required MessageService messageService,
     required ReceiptService receiptService,
+    required MessageChanges changes,
     required Clock clock,
     required AppConfig config,
   }) : _messages = messages,
@@ -46,6 +52,7 @@ class MaintenanceService {
        _friends = friends,
        _messageService = messageService,
        _receiptService = receiptService,
+       _changes = changes,
        _clock = clock,
        _config = config;
 
@@ -55,6 +62,7 @@ class MaintenanceService {
   final FriendService _friends;
   final MessageService _messageService;
   final ReceiptService _receiptService;
+  final MessageChanges _changes;
   final Clock _clock;
   final AppConfig _config;
 
@@ -70,6 +78,17 @@ class MaintenanceService {
     );
     final bundlesExpired = await _bundles.expireBundles(now, tombstoneExpiry);
     await _bundles.pruneTombstones(now, maxCount: _config.maxTombstones);
+
+    // Keep the whole store bounded: if it is over quota, drop the oldest
+    // messages first (first in, first out). Only the message store is
+    // reclaimed here; bundles already have their own quota.
+    final bundleBytes = await _bundles.totalBytes();
+    final messageBudget = _config.defaultStorageQuotaBytes - bundleBytes;
+    final messagesEvicted = await _messages.evictOldest(
+      messageBudget < 0 ? 0 : messageBudget,
+    );
+    if (messagesEvicted > 0) _changes.notify();
+
     final requestsExpired = await _friends.expireRequests();
     final receiptsPruned = await _receipts.prune(
       now - _config.receiptRetention.inMilliseconds,
@@ -82,6 +101,7 @@ class MaintenanceService {
 
     return MaintenanceReport(
       messagesExpired: messagesExpired,
+      messagesEvicted: messagesEvicted,
       bundlesExpired: bundlesExpired,
       requestsExpired: requestsExpired,
       receiptsPruned: receiptsPruned,

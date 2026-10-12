@@ -17,7 +17,7 @@ This End User License Agreement ("Agreement") is a legal agreement between you (
 
 ## 2. License Grant
 
-Subject to this Agreement, the Licensor grants the User a limited, revocable, non-exclusive, non-transferable, non-sublicensable right to install and use one copy of the App on a mobile device the User owns or controls.
+Subject to this Agreement, the Licensor grants the User a limited, non-exclusive, non-transferable, non-sublicensable right to install and use one copy of the App on a mobile device the User owns or controls.
 
 The User may not:
 
@@ -71,7 +71,7 @@ The User agrees to indemnify and hold harmless the Licensor from any claims, dam
 
 ## 9. Termination
 
-The Licensor may suspend or terminate the User's license if the User breaches this Agreement. The User may stop using the App at any time. On termination, the User's right to use the App ends and the User should delete the App from their device. Sections that by their nature should survive (Sections 6, 7, 8, 10, 11, 12) survive termination.
+The App runs only on the User's own device and is openly downloadable, so the Licensor cannot and does not remotely revoke or disable a copy the User has already installed. This Agreement and the license it grants end when the User stops using the App and deletes it. The User may stop using the App at any time. Sections that by their nature should survive (Sections 6, 7, 8, 10, 11, 12) survive termination.
 
 ---
 

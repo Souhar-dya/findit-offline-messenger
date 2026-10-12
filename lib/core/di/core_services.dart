@@ -174,6 +174,7 @@ class CoreServices {
       friends: friendService,
       messageService: messageService,
       receiptService: receiptService,
+      changes: messageChanges,
       clock: clock,
       config: config,
     );
