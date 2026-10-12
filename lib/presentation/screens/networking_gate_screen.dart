@@ -42,7 +42,7 @@ class NetworkingGateScreen extends StatelessWidget {
                     'discovered, sent or received. Turn it on to start FindIt: '
                     'discover nearby peers and send and receive your own '
                     'messages. Your device may then also carry encrypted '
-                    'bundles for other people (you can never read them).',
+                    'messages for other people (you can never read them).',
                     style: theme.textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),

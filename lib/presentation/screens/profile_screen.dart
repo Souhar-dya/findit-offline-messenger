@@ -15,6 +15,14 @@ class ProfileScreen extends StatelessWidget {
     final identity = context.watch<IdentityController>();
     final settings = context.watch<SettingsController>();
     final qrData = identity.qrData;
+    final connectionNote = settings.isSimulated
+        ? 'This build runs a self-contained demo. No Wi-Fi or Bluetooth is '
+              'used.'
+        : settings.canDiscover
+        ? 'FindIt reaches other nearby FindIt devices directly over Wi-Fi. '
+              'Both devices need Wi-Fi on and must be within range.'
+        : 'This device cannot reach other nearby devices over Wi-Fi yet, so '
+              'discovery is unavailable.';
 
     return RefreshIndicator(
       onRefresh: settings.refresh,
@@ -62,16 +70,16 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           SectionCard(
-            title: 'Transport',
+            title: 'Connection',
             subtitle: settings.isSimulated
-                ? 'Simulated'
+                ? 'Demo mode · no radio is used'
                 : settings.canDiscover
-                ? 'Native'
-                : 'Unavailable',
+                ? 'On this device'
+                : 'Not available on this device',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(settings.transportDescription),
+                Text(connectionNote),
                 const SizedBox(height: 8),
                 const Text(
                   'Background delivery is best-effort only. Message delivery '
@@ -107,10 +115,10 @@ class ProfileScreen extends StatelessWidget {
                   'While it is off the radio is silent: nothing is discovered, '
                   'sent or received, and your messages are held on this device. '
                   'Turn it on to discover nearby peers and send/receive your own '
-                  'messages; your device may then also store and forward '
-                  'encrypted bundles addressed to other people (you can never '
-                  'read them). Turning it off again stops everything and deletes '
-                  'any third-party bundles this device was holding.',
+                  'messages; your device may then also carry encrypted messages '
+                  'addressed to other people (you can never read them). Turning '
+                  'it off again stops everything and deletes any messages for '
+                  'other people this device was holding.',
                   style: TextStyle(fontSize: 12),
                 ),
               ],
@@ -127,7 +135,7 @@ class ProfileScreen extends StatelessWidget {
                   '${formatBytes(settings.totalBytes)} used of '
                   '${formatBytes(settings.quotaBytes)} '
                   '(${formatBytes(settings.messageBytes)} messages, '
-                  '${formatBytes(settings.bundleBytes)} queued bundles)',
+                  '${formatBytes(settings.bundleBytes)} carried for others)',
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -208,8 +216,8 @@ class ProfileScreen extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Reset everything?'),
         content: const Text(
-          'Your identity key pair, contacts, messages and queued bundles will '
-          'be permanently deleted from this device.',
+          'Your identity key pair, contacts, messages and anything held for '
+          'others will be permanently deleted from this device.',
         ),
         actions: [
           TextButton(

@@ -28,8 +28,6 @@ class SettingsController extends ChangeNotifier {
     return (totalBytes / quotaBytes).clamp(0.0, 1.0);
   }
 
-  String get transportDescription =>
-      _services.core.transport.capabilities.description;
   bool get isSimulated => _services.core.transport.capabilities.isSimulated;
   bool get canDiscover => _services.core.transport.capabilities.canDiscover;
 
@@ -52,7 +50,7 @@ class SettingsController extends ChangeNotifier {
       await _services.setNetworkingEnabled(value);
       _status = value
           ? 'FindIt is on. This device can discover nearby peers, send and '
-                'receive your messages, and may carry encrypted bundles for '
+                'receive your messages, and may carry encrypted messages for '
                 'others.'
           : 'FindIt is radio silent. Nothing is discovered, sent or received, '
                 'and any stored third-party bundles were deleted.';
