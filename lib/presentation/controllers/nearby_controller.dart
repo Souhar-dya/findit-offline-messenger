@@ -25,6 +25,8 @@ class NearbyController extends ChangeNotifier {
   List<TransportPeer> _knownPeers = const [];
   List<PeerSessionInfo> _sessions = const [];
   bool _busy = false;
+  bool _wasRunning = false;
+  bool _disposed = false;
   String? _error;
 
   TransportCapabilities get capabilities =>
@@ -54,10 +56,30 @@ class NearbyController extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
+    if (_disposed) return;
     _knownPeers = _services.core.transport.knownPeers;
     _sessions = _services.core.routingEngine.peers;
     await refreshPlatformState();
+    // The await above can outlive the widget; never notify a disposed notifier.
+    if (_disposed) return;
+    _syncRunningState();
     notifyListeners();
+  }
+
+  /// Drops a stale start-up failure once the transport is actually running.
+  ///
+  /// The transport can be started from other screens (the permission gate, the
+  /// Profile switch, identity creation), so a failure recorded here would
+  /// otherwise leave a red "Wi-Fi is off" banner on Nearby even after the radio
+  /// is up and peers are connected.
+  void _syncRunningState() {
+    final running = _services.core.routingEngine.isRunning;
+    if (running && !_wasRunning) {
+      _error = null;
+      _needsWifi = false;
+      _needsPermission = false;
+    }
+    _wasRunning = running;
   }
 
   /// Re-reads the radio + permission state without prompting the user.
@@ -110,7 +132,18 @@ class NearbyController extends ChangeNotifier {
       }
       await _services.startNetworking();
     } catch (error) {
-      _error = 'Could not start discovery: $error';
+      // The native side performs the authoritative Wi-Fi radio check, so a
+      // failure here can mean the radio is off even though our pre-check read
+      // as enabled. Re-read it so the "Turn on Wi-Fi" affordance appears.
+      var message = 'Could not start discovery: $error';
+      if (_services.requiresPlatformPermissions) {
+        _wifiEnabled = await _services.isWifiEnabled();
+        if (!_wifiEnabled) {
+          _needsWifi = true;
+          message = 'Wi-Fi is off. Turn on Wi-Fi to discover nearby devices.';
+        }
+      }
+      _error = message;
     } finally {
       _busy = false;
       await refresh();
@@ -150,10 +183,14 @@ class NearbyController extends ChangeNotifier {
     await refresh();
   }
 
-  void _onServicesChanged() => notifyListeners();
+  void _onServicesChanged() {
+    if (_disposed) return;
+    notifyListeners();
+  }
 
   @override
   void dispose() {
+    _disposed = true;
     _services.removeListener(_onServicesChanged);
     _discovered?.cancel();
     _lost?.cancel();

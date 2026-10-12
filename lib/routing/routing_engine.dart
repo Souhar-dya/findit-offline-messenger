@@ -135,20 +135,21 @@ class RoutingEngine {
     _incomingSub = _transport.incomingConnections.listen(_accept);
     _errorSub = _transport.errors.listen((_) {});
     _enqueueSub = _outbox.enqueued.listen((_) => flush());
-    await _transport.start();
+    try {
+      await _transport.start();
+    } catch (_) {
+      // A failed start (e.g. Wi-Fi turned off mid-launch) must not leave
+      // half-wired listeners behind: a later retry would otherwise subscribe
+      // again and handle every discovery twice.
+      await _cancelSubscriptions();
+      rethrow;
+    }
     _started = true;
     _emitPeers();
   }
 
   Future<void> stop() async {
-    await _discoverySub?.cancel();
-    await _incomingSub?.cancel();
-    await _errorSub?.cancel();
-    await _enqueueSub?.cancel();
-    _discoverySub = null;
-    _incomingSub = null;
-    _errorSub = null;
-    _enqueueSub = null;
+    await _cancelSubscriptions();
     for (final session in [..._sessions.values]) {
       await session.dispose();
     }
@@ -161,6 +162,17 @@ class RoutingEngine {
     if (_started) await _transport.stop();
     _started = false;
     _emitPeers();
+  }
+
+  Future<void> _cancelSubscriptions() async {
+    await _discoverySub?.cancel();
+    await _incomingSub?.cancel();
+    await _errorSub?.cancel();
+    await _enqueueSub?.cancel();
+    _discoverySub = null;
+    _incomingSub = null;
+    _errorSub = null;
+    _enqueueSub = null;
   }
 
   /// Opens a connection to a discovered peer handle.
