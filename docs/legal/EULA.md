@@ -37,7 +37,7 @@ The User retains ownership of Content the User sends or receives through the App
 
 The App is a decentralized, peer-to-peer application. The Licensor does not operate servers, does not store User Content, and has no ability to monitor, censor, or remove Content transmitted between Users. Once Content is delivered to another User's device, the Licensor cannot access, modify, or retract it.
 
-Because of this architecture, the Licensor has no control over what Users transmit through the App and bears no responsibility for Content exchanged between Users. By using the App, the User acknowledges and accepts this limitation. For details, see the [Privacy Policy](PRIVACY_POLICY.md).
+Because of this architecture, the Licensor has no control over what Users transmit through the App and bears no responsibility for Content exchanged between Users. By using the App, the User acknowledges and accepts this limitation.
 
 ---
 
@@ -95,7 +95,7 @@ If any provision of this Agreement is held unenforceable, that provision will be
 
 ## 13. Entire Agreement
 
-This Agreement, together with the [Acceptable Use Policy](ACCEPTABLE_USE_POLICY.md) and the [Privacy Policy](PRIVACY_POLICY.md) (each incorporated by reference), is the entire agreement between the User and the Licensor regarding the App and supersedes any prior agreements or understandings.
+This Agreement, together with the [Acceptable Use Policy](ACCEPTABLE_USE_POLICY.md) (incorporated by reference), is the entire agreement between the User and the Licensor regarding the App and supersedes any prior agreements or understandings.
 
 ---
 

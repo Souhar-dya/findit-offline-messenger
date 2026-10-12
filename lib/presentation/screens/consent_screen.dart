@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/di/app_services.dart';
 import '../../core/legal/terms.dart';
+import 'eula_screen.dart';
 
 /// The consent gate shown before any networking.
 ///
@@ -60,7 +61,23 @@ class _ConsentScreenState extends State<ConsentScreen> {
                     const SizedBox(height: 4),
                     Text(section.body),
                   ],
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      key: const Key('consent-eula-link'),
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const EulaScreen(),
+                              ),
+                            ),
+                      icon: const Icon(Icons.description_outlined, size: 18),
+                      label: const Text('Read the full End User License Agreement (EULA)'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
                     'Version ${TermsDocument.version}.',
                     style: theme.textTheme.bodySmall,
@@ -83,7 +100,8 @@ class _ConsentScreenState extends State<ConsentScreen> {
                         : (value) =>
                               setState(() => _agreed = value ?? false),
                     title: const Text(
-                      'I have read and accept the Terms and Conditions above.',
+                      'I have read and accept the Acceptable Use Policy and the '
+                      'End User License Agreement.',
                     ),
                   ),
                   const SizedBox(height: 8),
