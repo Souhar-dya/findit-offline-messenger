@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import com.findit.findit.networking.NetworkingService
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -76,6 +77,7 @@ class PlatformTransportChannel private constructor(
         createEngine = { events -> WifiP2pEngine(appContext, events) },
         localAddress = { localIpv4() },
         deviceName = { Build.MODEL },
+        supportsBackground = { true },
     )
 
     init {
@@ -88,10 +90,19 @@ class PlatformTransportChannel private constructor(
             TransportContract.METHOD_START -> {
                 val port = call.argument<Number>(TransportContract.KEY_DATA_PORT)?.toInt() ?: 0
                 val handle = call.argument<String>(TransportContract.KEY_HANDLE)
-                result.respond(bridge.handleStart(port, handle))
+                val outcome = bridge.handleStart(port, handle)
+                // Keep the process alive in the background only while the radio
+                // is actually running.
+                if (outcome is BridgeResult.Success) {
+                    NetworkingService.start(appContext)
+                }
+                result.respond(outcome)
             }
 
-            TransportContract.METHOD_STOP -> result.respond(bridge.handleStop())
+            TransportContract.METHOD_STOP -> {
+                NetworkingService.stop(appContext)
+                result.respond(bridge.handleStop())
+            }
 
             TransportContract.METHOD_UPDATE_ADVERTISEMENT -> {
                 val hint = call.argument<String>(TransportContract.KEY_DISPLAY_HINT)
@@ -108,6 +119,7 @@ class PlatformTransportChannel private constructor(
             TransportContract.METHOD_CAPABILITIES -> result.respond(bridge.capabilities())
 
             TransportContract.METHOD_DISPOSE -> {
+                NetworkingService.stop(appContext)
                 bridge.dispose()
                 methodChannel.setMethodCallHandler(null)
                 eventChannel.setStreamHandler(null)
@@ -136,8 +148,12 @@ class PlatformTransportChannel private constructor(
             }
 
             TransportContract.METHOD_REQUEST_PERMISSIONS -> {
-                val missing = requiredPermissions().filter { !isGranted(it) }
-                if (missing.isEmpty()) {
+                // Required permissions gate the app. POST_NOTIFICATIONS is only
+                // for the background-service notification, so a denial must not
+                // block networking.
+                val toRequest = (requiredPermissions() + optionalPermissions())
+                    .filter { !isGranted(it) }
+                if (toRequest.isEmpty()) {
                     result.success(mapOf("granted" to true))
                     return
                 }
@@ -149,7 +165,7 @@ class PlatformTransportChannel private constructor(
                 )
                 pendingPermissionResult = result
                 activity.requestPermissions(
-                    missing.toTypedArray(),
+                    toRequest.toTypedArray(),
                     REQUEST_CODE_PERMISSIONS,
                 )
             }
@@ -182,9 +198,9 @@ class PlatformTransportChannel private constructor(
         if (requestCode != REQUEST_CODE_PERMISSIONS) return false
         val result = pendingPermissionResult ?: return false
         pendingPermissionResult = null
-        val granted =
-            grantResults.isNotEmpty() &&
-                grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+        // Only the required set gates the app; an ignored notification prompt
+        // must not be reported as a denied networking permission.
+        val granted = requiredPermissions().all { isGranted(it) }
         result.success(mapOf("granted" to granted))
         return true
     }
@@ -200,6 +216,12 @@ class PlatformTransportChannel private constructor(
                 Manifest.permission.ACCESS_COARSE_LOCATION,
             )
         }
+    }
+
+    /** Nice-to-have permissions; not granted means a feature degrades, not fails. */
+    private fun optionalPermissions(): List<String> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return emptyList()
+        return listOf(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     private fun isGranted(permission: String): Boolean =

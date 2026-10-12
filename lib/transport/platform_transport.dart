@@ -219,6 +219,7 @@ class PlatformTransport implements Transport {
   StreamSubscription<Map<String, Object?>>? _eventSub;
   bool _running = false;
   bool _discoverable = false;
+  bool _supportsBackground = false;
   String? _displayHint;
   String? _fabric;
 
@@ -251,7 +252,7 @@ class PlatformTransport implements Transport {
       canConnect: true,
       supportsResumableTransfer: false,
       isSimulated: false,
-      supportsBackground: false,
+      supportsBackground: _supportsBackground,
       description:
           'Native Wi-Fi Direct transport. Both devices need Wi-Fi on, the '
           'Nearby devices permission granted, and must be within range.',
@@ -295,6 +296,8 @@ class PlatformTransport implements Transport {
       );
     }
     _fabric = fabric;
+    _supportsBackground =
+        result[PlatformPayloadKeys.supportsBackground] as bool? ?? false;
     _running = true;
     _eventSub = gateway.events.listen(
       _onPlatformEvent,

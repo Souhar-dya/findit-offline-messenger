@@ -21,6 +21,7 @@ class TransportBridge(
     private val localAddress: () -> String? = { null },
     private val now: () -> Long = { System.currentTimeMillis() },
     private val deviceName: () -> String? = { null },
+    private val supportsBackground: () -> Boolean = { false },
 ) {
     private var engine: TransportEngine? = null
     private var dataPort: Int = 0
@@ -49,6 +50,7 @@ class TransportBridge(
                     TransportContract.KEY_SUPPORTED to true,
                     TransportContract.KEY_FABRIC to current.fabric,
                     TransportContract.KEY_DEVICE_NAME to deviceName(),
+                    TransportContract.KEY_BACKGROUND to supportsBackground(),
                 ),
             )
         }
@@ -63,6 +65,7 @@ class TransportBridge(
                 TransportContract.KEY_SUPPORTED to true,
                 TransportContract.KEY_FABRIC to candidate.fabric,
                 TransportContract.KEY_DEVICE_NAME to deviceName(),
+                TransportContract.KEY_BACKGROUND to supportsBackground(),
             ),
         )
     }
@@ -117,7 +120,7 @@ class TransportBridge(
                 TransportContract.KEY_CAN_DISCOVER to running,
                 TransportContract.KEY_CAN_CONNECT to running,
                 TransportContract.KEY_RESUMABLE to false,
-                TransportContract.KEY_BACKGROUND to false,
+                TransportContract.KEY_BACKGROUND to supportsBackground(),
                 TransportContract.KEY_DESCRIPTION to
                     "Native ${engine?.fabric ?: "unavailable"} transport. Requires both devices " +
                     "within Wi-Fi range and on the same direct group.",

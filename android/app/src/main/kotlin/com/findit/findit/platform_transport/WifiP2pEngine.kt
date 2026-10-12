@@ -6,14 +6,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.net.NetworkInfo
 import android.net.wifi.WifiManager
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pInfo
 import android.net.wifi.p2p.WifiP2pManager
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest
+import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -78,23 +79,28 @@ class WifiP2pEngine(
     override fun start(): Boolean {
         val p2p = this.p2p
         if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT) || p2p == null) {
+            Log.e(TAG, "start: this device does not support Wi-Fi Direct")
             events.onError(TransportContract.ERR_UNAVAILABLE, "This device does not support Wi-Fi Direct")
             return false
         }
         val wifi = context.getSystemService(WifiManager::class.java)
         if (wifi == null || !wifi.isWifiEnabled) {
+            Log.e(TAG, "start: Wi-Fi is off")
             events.onError(TransportContract.ERR_UNAVAILABLE, "Wi-Fi is off")
             return false
         }
+        Log.d(TAG, "start: opening Wi-Fi Direct channel")
         val channel = p2p.initialize(
             context,
             Looper.getMainLooper(),
             WifiP2pManager.ChannelListener {
                 running = false
+                Log.e(TAG, "start: Wi-Fi Direct channel lost")
                 events.onError(TransportContract.ERR_UNAVAILABLE, "Wi-Fi Direct channel lost")
             },
         )
         if (channel == null) {
+            Log.e(TAG, "start: could not open a Wi-Fi Direct channel")
             events.onError(TransportContract.ERR_UNAVAILABLE, "Could not open a Wi-Fi Direct channel")
             return false
         }
@@ -103,8 +109,10 @@ class WifiP2pEngine(
         registerReceiver()
         configureServiceDiscovery(channel)
         p2p.discoverPeers(channel, actionListener("discoverPeers"))
+        startRediscovery()
         // The local advertisement is published once Dart sends an advertisement
         // carrying a valid dataPort (see updateAdvertisement).
+        Log.d(TAG, "start: discovery is running")
         return true
     }
 
@@ -125,6 +133,7 @@ class WifiP2pEngine(
             "p" to advertisement.dataPort.toString(),
         )
         advertisement.displayNameHint?.let { txt["d"] = it }
+        Log.d(TAG, "advertise: handle=$advertised port=${advertisement.dataPort} hint=${advertisement.displayNameHint}")
         val service = WifiP2pDnsSdServiceInfo.newInstance(advertised, SERVICE_TYPE, txt)
         localService = service
         p2p.addLocalService(channel, service, actionListener("addLocalService"))
@@ -140,8 +149,10 @@ class WifiP2pEngine(
             onResult(null, null, TransportContract.ERR_CONNECT_FAILED, "Transport is not running")
             return
         }
+        Log.d(TAG, "connect: peer=$handle")
         val address = addressByHandle[handle]
         if (address == null) {
+            Log.e(TAG, "connect: unknown peer handle $handle")
             onResult(null, null, TransportContract.ERR_CONNECT_FAILED, "Unknown peer handle")
             return
         }
@@ -175,10 +186,12 @@ class WifiP2pEngine(
                 config,
                 object : WifiP2pManager.ActionListener {
                     override fun onSuccess() {
+                        Log.d(TAG, "connect: p2p.connect() accepted; waiting for group formation")
                         // Group formation continues via CONNECTION_CHANGED.
                     }
 
                     override fun onFailure(reason: Int) {
+                        Log.e(TAG, "connect: p2p.connect() failed reason=$reason")
                         resolvePending(
                             null,
                             null,
@@ -192,7 +205,9 @@ class WifiP2pEngine(
     }
 
     override fun stop() {
+        Log.d(TAG, "stop: discovery shutting down")
         running = false
+        stopRediscovery()
         resolvePending(null, null, TransportContract.ERR_CONNECT_FAILED, "Transport stopped")
 
         receiver?.let { r -> runCatching { context.unregisterReceiver(r) } }
@@ -260,6 +275,7 @@ class WifiP2pEngine(
                 txt["p"]?.toIntOrNull()?.let { portByAddress[address] = it }
                 txt["d"]?.let { hintByAddress[address] = it }
                 val advertised = txt["h"]
+                Log.d(TAG, "DNS-SD TXT: h=$advertised p=${txt["p"]} d=${txt["d"]}")
                 if (advertised.isNullOrEmpty()) return@DnsSdTxtRecordListener
                 rememberPeer(address, advertised)
                 events.onPeerFound(
@@ -284,10 +300,26 @@ class WifiP2pEngine(
     }
 
     private fun onConnectionChanged(intent: Intent) {
-        @Suppress("DEPRECATION")
-        val networkInfo =
-            intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO) as? NetworkInfo
-        if (networkInfo?.isConnected != true) {
+        // Do NOT read EXTRA_NETWORK_INFO: it is deprecated and returns null on
+        // Android 10+, which used to make this bail out and leave connect()
+        // hanging forever. Always ask the manager for the authoritative state.
+        val channel = this.channel ?: return
+        val p2p = this.p2p ?: return
+        Log.d(TAG, "WIFI_P2P_CONNECTION_CHANGED_ACTION -> requestConnectionInfo")
+        p2p.requestConnectionInfo(channel) { info -> onConnectionInfo(info) }
+    }
+
+    private fun onConnectionInfo(info: WifiP2pInfo) {
+        val address = pendingAddress
+        Log.d(
+            TAG,
+            "onConnectionInfo: groupFormed=${info.groupFormed} " +
+                "isGroupOwner=${info.isGroupOwner} " +
+                "owner=${info.groupOwnerAddress?.hostAddress} " +
+                "pending=$address",
+        )
+        if (address == null) return
+        if (!info.groupFormed) {
             resolvePending(
                 null,
                 null,
@@ -296,13 +328,6 @@ class WifiP2pEngine(
             )
             return
         }
-        val channel = this.channel ?: return
-        p2p?.requestConnectionInfo(channel) { info -> onConnectionInfo(info) }
-    }
-
-    private fun onConnectionInfo(info: WifiP2pInfo) {
-        val address = pendingAddress
-        if (address == null || !info.groupFormed) return
         val port = portByAddress[address] ?: 0
         // We ask to be a client (groupOwnerIntent = 0), so the group owner is the
         // peer. If we still ended up as the owner we cannot learn the client's
@@ -328,15 +353,45 @@ class WifiP2pEngine(
     }
 
     private fun actionListener(label: String) = object : WifiP2pManager.ActionListener {
-        override fun onSuccess() {}
+        override fun onSuccess() {
+            Log.d(TAG, "action $label: success")
+        }
+
         override fun onFailure(reason: Int) {
+            Log.e(TAG, "action $label: failed ($reason)")
             events.onError(TransportContract.ERR_GENERIC, "Wi-Fi Direct $label failed ($reason)")
         }
+    }
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val rediscover = object : Runnable {
+        override fun run() {
+            val p2p = this@WifiP2pEngine.p2p ?: return
+            val channel = this@WifiP2pEngine.channel ?: return
+            if (!running) return
+            Log.d(TAG, "rediscover: discoverPeers + discoverServices")
+            p2p.discoverPeers(channel, actionListener("rediscoverPeers"))
+            p2p.discoverServices(channel, actionListener("rediscoverServices"))
+            mainHandler.postDelayed(this, REDISCOVER_INTERVAL_MS)
+        }
+    }
+
+    private fun startRediscovery() {
+        mainHandler.removeCallbacks(rediscover)
+        mainHandler.postDelayed(rediscover, REDISCOVER_INTERVAL_MS)
+    }
+
+    private fun stopRediscovery() {
+        mainHandler.removeCallbacks(rediscover)
     }
 
     private companion object {
         // A DNS-SD type understood by Wi-Fi Direct. The app-specific meaning is
         // carried in the instance name (the handle) and TXT records.
         const val SERVICE_TYPE = "_presence._tcp"
+        const val TAG = "FindIt/Transport"
+
+        /** Android stops Wi-Fi Direct discovery after a while, so re-issue it. */
+        const val REDISCOVER_INTERVAL_MS = 30_000L
     }
 }

@@ -83,7 +83,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                         : (value) =>
                               setState(() => _agreed = value ?? false),
                     title: const Text(
-                      'I have read and agree to the terms above.',
+                      'I have read and accept the Terms and Conditions above.',
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -99,7 +99,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.check),
-                      label: const Text('Agree and continue'),
+                      label: const Text('Accept and continue'),
                     ),
                   ),
                   const SizedBox(height: 8),

@@ -7,15 +7,16 @@ class TermsDocument {
   TermsDocument._();
 
   /// Version of the wording below. Bump it whenever the text changes.
-  static const String version = '2.0';
+  static const String version = '2.1';
 
-  static const String title = 'Consent & terms of use';
+  static const String title = 'Terms and Conditions';
 
   static const String intro =
-      'FindIt is an offline-first, decentralized messenger. Please read this '
-      'before you continue. It explains what leaves your device, what your '
-      'device is allowed to do, and the limits of a peer-to-peer network. No '
-      'data is transferred until you agree.';
+      'These are the Terms and Conditions for using FindIt, an offline-first, '
+      'decentralized messenger. Please read them before you continue. They '
+      'explain what FindIt is, what leaves your device, what your device is '
+      'allowed to do, and the limits of a peer-to-peer network. No data is '
+      'transferred until you accept these terms.';
 
   static const List<TermsSection> sections = <TermsSection>[
     TermsSection(
