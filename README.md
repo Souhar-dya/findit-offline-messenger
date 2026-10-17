@@ -133,28 +133,34 @@ the open source in this repository.
   started (so nothing is discovered) and the routing engine drops everything (so
   nothing is sent, received or stored for anyone).
 
-### Why Wi-Fi Direct (and what about Bluetooth?)
+### Wi-Fi Direct now, both radios later
 
-FindIt had to move data between two ordinary phones with **no router, no server
-and no pairing ceremony**. The options are:
+FindIt moves data between two ordinary phones with **no router, no server and no
+pairing ceremony**. Today it uses one radio, picked because it fits the job; the
+goal is to run **two**, so a message can take whichever path is open.
 
-- **Wi-Fi Direct (Wi-Fi P2P) — what we use.** Two phones form their own private
-  Wi-Fi link, then the protocol runs over a plain TCP socket. It needs no
-  internet, no SIM and no pre-pairing, works at indoor range, and is fast enough
-  for PNG images. Both Wi-Fi Direct and a normal Wi-Fi connection can coexist, so
-  chatting on a home network doesn't break it — it only needs the Wi-Fi switch
-  **on**.
-- **Bluetooth / BLE mesh — not implemented.** This is the natural *next*
-  transport, and the reason is honest: Wi-Fi Direct ranges are limited, and some
-  phones don't expose P2P well, whereas a Bluetooth link is more universally
-  available. It is a real roadmap item, but **not in this version** — adding a
-  correct, secure mesh needs its own discovery and datapath work, and we won't
-  claim it before it exists.
+- **Wi-Fi Direct (Wi-Fi P2P) — in use today.** Two phones form their own private
+  Wi-Fi link and the protocol runs over a plain TCP socket. No internet, no SIM,
+  no pre-pairing; indoor range and fast enough for PNG images. It coexists with a
+  normal Wi-Fi connection, and only needs the Wi-Fi switch itself on.
+- **Bluetooth Low Energy (BLE) — planned, not implemented.** BLE is on virtually
+  every phone, sips power, and reaches places Wi-Fi Direct doesn't. Its weakness
+  is bandwidth and range, so it suits small text and "presence" more than images.
 
-The protocol is written so the radio is a **replaceable seam**: Android uses
-Wi-Fi Direct today, the protocol runs over plain TCP, and it is tested without a
-radio at all. That is what makes dropping in a future transport realistic rather
-than a rewrite.
+**Why both.** They fail in different places, so two radios beat one:
+
+- A message that can't go out directly — no Wi-Fi Direct capable peer, out of
+  range, or the radio busy sharing a hotspot — can still be handed to a nearby
+  phone that *is* reachable, which carries it onward.
+- The transport is a **replaceable seam**, and a message is just an end-to-end
+  encrypted bundle that doesn't care which link carried it. A short text sent
+  over BLE and a big PNG sent over Wi-Fi Direct use the same routing and the same
+  encryption, and may even mix along one path.
+
+> **Honest:** running both radios in one build is the **plan, not a current
+> feature**. Today FindIt uses Wi-Fi Direct only. BLE needs its own discovery and
+> datapath built and tested on real phones, and we won't claim it until it does.
+
 
 ---
 
@@ -169,7 +175,7 @@ than a rewrite.
 | What your QR code contains | public identity information only |
 | What the radio layer sees | a **rotating** handle, never your permanent id |
 | What a carrier can see | timing / size / hop metadata — **not** your content |
-| Bluetooth | not used (a future transport) |
+| Bluetooth | not used yet (planned alongside Wi-Fi Direct) |
 | Default state | radio silent until you flip the switch |
 
 ---
@@ -195,8 +201,9 @@ not, so you can trust the parts that are done and see the parts that aren't.
   radio layer for iOS isn't written.
 - **Wi-Fi Aware.** The Android API is stubbed out, not implemented. Wi-Fi Direct
   is the only Android transport today.
-- **Bluetooth.** Not used. A Bluetooth mesh transport is planned future work
-  (see [above](#why-wi-fi-direct-and-what-about-bluetooth)).
+- **Bluetooth (BLE).** Not used yet. A BLE link is planned to run *alongside*
+  Wi-Fi Direct, so a message can hop whichever radio happens to be reachable
+  (see [above](#wi-fi-direct-now-both-radios-later)).
 
 **Honest about audits**
 
