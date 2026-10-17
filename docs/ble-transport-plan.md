@@ -1,8 +1,11 @@
 # FindIt — two radios: BLE + Wi-Fi Direct
 
-> **Status: proposal.** Nothing in this document is built, and none of it is
-> claimed to work. It exists so the work can be reviewed *before* it starts, and
-> so the project never ships a claim it hasn't tested on real phones.
+> **Status: partly built.** Phase 0 (`MultiTransport`, Dart only) is
+> implemented and unit-tested — see `lib/transport/multi_transport.dart` and
+> `test/multi_transport_test.dart`. Everything from Phase 1 on is still a
+> proposal: nothing BLE-related is built, and none of it is claimed to work. This
+> document exists so the work is reviewed *before* it starts, and so the project
+> never ships a claim it hasn't tested on real phones.
 
 ## 1. The goal
 
@@ -69,11 +72,11 @@ and dials `Socket.connect`).
 is already frame-oriented (`bundles`, `summaries`, `handshake`), so nothing about
 BLE needs to pretend to be a socket.
 
-## 4. Phase 0 — `MultiTransport` (Dart only, no hardware)
+## 4. Phase 0 — `MultiTransport` (Dart only, no hardware) — **built**
 
 The safe, fully-testable first step. Nothing about it depends on BLE existing.
 
-**New:** `lib/transport/multi_transport.dart`
+**Built:** `lib/transport/multi_transport.dart`
 
 - `implements Transport`, wrapping an ordered `List<Transport>` (preference order:
   Wi-Fi Direct first, BLE second).
@@ -84,7 +87,9 @@ The safe, fully-testable first step. Nothing about it depends on BLE existing.
 - `discoveredPeers` / `lostPeers` / `incomingConnections` are merged (broadcast,
   re-broadcast safely).
 - `errors`: fan-in.
-- `localId`: the first child's.
+- `localId`: the first child's. `localIdFor(peerId)`: the owning child's, so the
+  routing engine's dial tie-break compares matching handles when several radios
+  are on at once.
 - `capabilities`: union (so the UI can say "two links").
 
 **Why it is worth doing even before BLE:** it is the place the preference policy
@@ -93,8 +98,10 @@ lives, and today it is a one-child wrapper that keeps the seam exercised.
 **Tests:** `test/multi_transport_test.dart`, with two fake transports:
 
 - a handle routes to the child that owns it;
-- a peer discovered on both children connects over the preferred child;
-- `start`/`stop`/`dispose` fan out;
+- `connect` falls back through the children in preference order;
+- `localIdFor` answers per link and falls back to the preferred child;
+- `start`/`stop`/`dispose` fan out, and a partial start failure is reported
+  without taking the other radio down;
 - discovery and loss events merge.
 
 ## 5. Phase 1 — BLE contract + Dart `BleTransport`
@@ -119,7 +126,7 @@ lives, and today it is a one-child wrapper that keeps the seam exercised.
 `BLUETOOTH_CONNECT`, `BLUETOOTH_ADVERTISE` on API 31+; the legacy
 `BLUETOOTH`/`BLUETOOTH_ADMIN` pair below 31.
 
-## 5. Phase 1 — `BleEngine.kt` (Android)
+## 6. Phase 2 — `BleEngine.kt` (Android)
 
 The largest and least deterministic part. **Not** the Bluetooth SIG "Mesh"
 profile — that is for sensors; FindIt's own routing already does the
@@ -136,7 +143,7 @@ store-carry-forward part.
   the right host; it will need a `foregroundServiceType` that permits
   connected-device work.
 
-## 6. Phase 2 — Wiring & UX
+## 7. Phase 3 — Wiring & UX
 
 - `AppBootstrap` composes a `MultiTransport`.
 - `AppServices` keeps working (`platformTransport` getter must still find the
@@ -146,7 +153,7 @@ store-carry-forward part.
 - Preference: attempt Wi-Fi Direct first; only settle on BLE when no Wi-Fi Direct
   peer is available.
 
-## 6. Testing and acceptance
+## 8. Testing and acceptance
 
 - **Unit (Dart):** Phases 0 and 1 with fake gateways — must pass in CI.
 - **JVM:** `BleEngine` chunking / queue logic where it can be isolated.
@@ -156,7 +163,7 @@ store-carry-forward part.
 - **Release rule:** the README may only claim BLE once the two-phone test passes.
   Until then it stays "planned".
 
-## 7. Risks
+## 9. Risks
 
 | Risk | Mitigation |
 | --- | --- |
@@ -168,18 +175,17 @@ store-carry-forward part.
 | Wi-Fi Direct and BLE share an antenna | Accept time-slicing; test both active |
 | Battery | BLE only on demand; keep the scan window short |
 
-## 8. Suggested order
+## 10. Suggested order
 
-1. **Phase 0 — `MultiTransport`.** Small, safe, unit-tested. Can ship without
-   BLE and proves the composition.
+1. **Phase 0 — `MultiTransport`.** *Done and unit-tested.*
 2. **Phase 1 — contract + `BleTransport` (Dart).** Testable on loopback.
 3. **Phase 2 — `BleEngine.kt`.** Needs the two phones; the long pole.
 4. **Phase 3 — wiring + preference**, then honest docs.
 
-Phases 0–1 are ordinary Flutter work and can be done here. Phase 2 needs your
-phones and a real testing session.
+Phase 1 is ordinary Flutter work and can be done here. Phase 2 needs your phones
+and a real testing session.
 
-## 9. Non-goals
+## 11. Non-goals
 
 - The Bluetooth SIG **Mesh profile**. (We would reuse FindIt's routing instead.)
 - iOS BLE. (The Dart side would port, but the iOS native transport isn't built.)
