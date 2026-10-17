@@ -161,6 +161,9 @@ goal is to run **two**, so a message can take whichever path is open.
 > feature**. Today FindIt uses Wi-Fi Direct only. BLE needs its own discovery and
 > datapath built and tested on real phones, and we won't claim it until it does.
 
+The step-by-step plan lives in
+[`docs/ble-transport-plan.md`](docs/ble-transport-plan.md).
+
 
 ---
 
