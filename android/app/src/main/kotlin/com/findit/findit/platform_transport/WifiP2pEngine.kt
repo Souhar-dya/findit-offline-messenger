@@ -72,6 +72,11 @@ class WifiP2pEngine(
     private val portByAddress = ConcurrentHashMap<String, Int>()
     private val hintByAddress = ConcurrentHashMap<String, String>()
 
+    // Reverse of [addressByHandle]: the handle a peer advertised, by device MAC.
+    // Needed when this device is invited into a group: WifiP2pGroup only reports
+    // the owner's MAC address, not the handle it advertised.
+    private val handleByAddress = ConcurrentHashMap<String, String>()
+
     // The initiator's in-flight connect().
     private var pendingAddress: String? = null
     private var pendingResult: ((String?, Int?, String?, String?) -> Unit)? = null
@@ -173,12 +178,25 @@ class WifiP2pEngine(
                 onResult(owner, port, null, null)
                 return@requestConnectionInfo
             }
+            if (info.groupFormed && info.isGroupOwner) {
+                // We already own a group. Re-running connect() would tear the
+                // existing group down, and only a client can dial, so there is
+                // nothing to initiate: the peer reaches us.
+                onResult(
+                    null,
+                    null,
+                    TransportContract.ERR_CONNECT_FAILED,
+                    "This device already owns the Wi-Fi Direct group; the peer dials us",
+                )
+                return@requestConnectionInfo
+            }
             pendingAddress = address
             pendingResult = onResult
             val config = WifiP2pConfig().apply {
                 deviceAddress = address
-                // Prefer that the *invited* device becomes the group owner so the
-                // address we read from WifiP2pInfo is the peer's IP.
+                // A hint only: negotiation may still elect this device as the
+                // group owner, which is fine because the client is always the
+                // side that dials (see onConnectionInfo).
                 groupOwnerIntent = 0
             }
             p2p.connect(
@@ -227,6 +245,7 @@ class WifiP2pEngine(
         addressByHandle.clear()
         portByAddress.clear()
         hintByAddress.clear()
+        handleByAddress.clear()
     }
 
     // --- discovery + group formation -----------------------------------------
@@ -297,6 +316,7 @@ class WifiP2pEngine(
 
     private fun rememberPeer(address: String, advertised: String) {
         addressByHandle[advertised] = address
+        handleByAddress[address] = advertised
     }
 
     private fun onConnectionChanged(intent: Intent) {
@@ -310,39 +330,95 @@ class WifiP2pEngine(
     }
 
     private fun onConnectionInfo(info: WifiP2pInfo) {
-        val address = pendingAddress
         Log.d(
             TAG,
             "onConnectionInfo: groupFormed=${info.groupFormed} " +
                 "isGroupOwner=${info.isGroupOwner} " +
                 "owner=${info.groupOwnerAddress?.hostAddress} " +
-                "pending=$address",
+                "pending=$pendingAddress",
         )
-        if (address == null) return
         if (!info.groupFormed) {
+            if (pendingResult != null) {
+                resolvePending(
+                    null,
+                    null,
+                    TransportContract.ERR_CONNECT_FAILED,
+                    "Wi-Fi Direct group closed before a datapath was established",
+                )
+            }
+            return
+        }
+        val p2p = this.p2p
+        val channel = this.channel
+        if (p2p == null || channel == null) return
+
+        // Only the *client* of a Wi-Fi Direct group can learn the other side's
+        // IPv4 address (WifiP2pInfo.groupOwnerAddress). A group owner cannot
+        // discover a client's address through the public API, so the client is
+        // always the side that dials and the owner always waits for the inbound
+        // connection. That keeps the datapath deterministic no matter which side
+        // requested the group (negotiation does not always honour
+        // groupOwnerIntent).
+        if (info.isGroupOwner) {
+            if (pendingResult != null) {
+                resolvePending(
+                    null,
+                    null,
+                    TransportContract.ERR_CONNECT_FAILED,
+                    "Wi-Fi Direct group formed with this device as the group owner; " +
+                        "the peer dials us",
+                )
+            }
+            return
+        }
+
+        val host = info.groupOwnerAddress?.hostAddress
+        if (host.isNullOrEmpty()) {
             resolvePending(
                 null,
                 null,
                 TransportContract.ERR_CONNECT_FAILED,
-                "Wi-Fi Direct group closed before a datapath was established",
+                "Wi-Fi Direct group formed but the owner address was not resolvable",
             )
             return
         }
-        val port = portByAddress[address] ?: 0
-        // We ask to be a client (groupOwnerIntent = 0), so the group owner is the
-        // peer. If we still ended up as the owner we cannot learn the client's
-        // IPv4 from WifiP2pInfo, so fail honestly rather than guess.
-        val host = if (!info.isGroupOwner) info.groupOwnerAddress?.hostAddress else null
-        if (host.isNullOrEmpty() || port <= 0) {
-            resolvePending(
-                null,
-                null,
-                TransportContract.ERR_CONNECT_FAILED,
-                "Wi-Fi Direct group formed but the peer address was not resolvable",
-            )
+
+        val requested = pendingAddress
+        if (requested != null) {
+            // We asked to connect and ended up as the client: dial the owner we
+            // invited, using the port it advertised.
+            val port = portByAddress[requested] ?: 0
+            if (port <= 0) {
+                resolvePending(
+                    null,
+                    null,
+                    TransportContract.ERR_CONNECT_FAILED,
+                    "Wi-Fi Direct group formed but the peer's data port is unknown",
+                )
+                return
+            }
+            resolvePending(host, port, null, null)
             return
         }
-        resolvePending(host, port, null, null)
+
+        // We were invited into the group. The owner is only known by MAC address
+        // from WifiP2pInfo, so look up the handle it advertised and hand the
+        // reachable endpoint to Dart, which opens the datapath.
+        p2p.requestGroupInfo(channel) { group ->
+            val ownerMac = group?.owner?.deviceAddress
+            val port = ownerMac?.let { portByAddress[it] } ?: 0
+            val handle = ownerMac?.let { handleByAddress[it] }
+            if (port <= 0 || handle.isNullOrEmpty()) {
+                Log.e(TAG, "join: owner unknown (mac=$ownerMac port=$port)")
+                events.onError(
+                    TransportContract.ERR_GENERIC,
+                    "Wi-Fi Direct group formed but the peer's data port is unknown",
+                )
+                return@requestGroupInfo
+            }
+            Log.d(TAG, "join: dial owner handle=$handle host=$host port=$port")
+            events.onPeerReachable(handle, host, port)
+        }
     }
 
     private fun resolvePending(host: String?, port: Int?, code: String?, msg: String?) {

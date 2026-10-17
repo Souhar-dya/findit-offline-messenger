@@ -32,6 +32,15 @@ object TransportContract {
     const val EVENT_PEER_LOST = "peerLost"
     const val EVENT_ERROR = "error"
 
+    /**
+     * This device joined a Wi-Fi Direct group as the *client*, so the peer
+     * (the group owner) is now reachable at `host`/`port`. A group owner cannot
+     * learn a client's IPv4 address through the public API, so the client is
+     * always the side that dials and the owner always waits for the inbound
+     * connection.
+     */
+    const val EVENT_PEER_REACHABLE = "peerReachable"
+
     // Payload keys (mirror PlatformPayloadKeys).
     const val KEY_HANDLE = "handle"
     const val KEY_DISPLAY_HINT = "displayNameHint"

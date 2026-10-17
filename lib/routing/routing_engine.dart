@@ -105,6 +105,7 @@ class RoutingEngine {
   StreamSubscription<StoredBundle>? _enqueueSub;
 
   bool _started = false;
+  Timer? _reconcileTimer;
 
   /// Snapshot of currently connected sessions, for the Nearby screen.
   List<PeerSessionInfo> get peers => [
@@ -145,10 +146,13 @@ class RoutingEngine {
       rethrow;
     }
     _started = true;
+    _startReconcile();
     _emitPeers();
   }
 
   Future<void> stop() async {
+    _reconcileTimer?.cancel();
+    _reconcileTimer = null;
     await _cancelSubscriptions();
     for (final session in [..._sessions.values]) {
       await session.dispose();
@@ -173,6 +177,27 @@ class RoutingEngine {
     _incomingSub = null;
     _errorSub = null;
     _enqueueSub = null;
+  }
+
+  /// Retries dialing known peers that are not connected. A one-shot discovery
+  /// event is not enough: a dial can fail (the peer was not listening yet, the
+  /// group formed before both sides were ready) and without a retry the two
+  /// devices would stay silently unconnected for the rest of the session.
+  void _startReconcile() {
+    _reconcileTimer ??= Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _reconcile(),
+    );
+  }
+
+  Future<void> _reconcile() async {
+    if (!_started || !_settings.networkingEnabled) return;
+    for (final peer in _transport.knownPeers) {
+      if (_sessions.containsKey(peer.peerId)) continue;
+      if (_connecting.contains(peer.peerId)) continue;
+      if (!_shouldInitiate(peer.peerId)) continue;
+      unawaited(connectTo(peer.peerId));
+    }
   }
 
   /// Opens a connection to a discovered peer handle.

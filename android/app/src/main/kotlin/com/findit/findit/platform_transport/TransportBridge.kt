@@ -168,6 +168,16 @@ class TransportBridge(
                 ),
             )
         },
+        onPeerReachable = { handle, host, port ->
+            emit(
+                mapOf(
+                    TransportContract.EVENT to TransportContract.EVENT_PEER_REACHABLE,
+                    TransportContract.KEY_HANDLE to handle,
+                    TransportContract.KEY_HOST to host,
+                    TransportContract.KEY_PORT to port,
+                ),
+            )
+        },
         onError = { code, message ->
             lastErrorCode = code
             lastErrorMessage = message

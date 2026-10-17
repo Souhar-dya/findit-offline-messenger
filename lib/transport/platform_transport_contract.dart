@@ -95,6 +95,12 @@ class PlatformEventNames {
   /// `{ event:'peerLost', handle }`
   static const String peerLost = 'peerLost';
 
+  /// `{ event:'peerReachable', handle, host, port }` - this device joined a
+  /// group as the client, so the peer (the group owner) is reachable at
+  /// `host`/`port`. The group owner cannot learn a client's address, so the
+  /// client is always the side that dials.
+  static const String peerReachable = 'peerReachable';
+
   /// `{ event:'error', code, message }` - a native-side failure.
   static const String error = 'error';
 }

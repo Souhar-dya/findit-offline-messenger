@@ -6,6 +6,11 @@ import java.security.SecureRandom
 class EngineEvents(
     val onPeerFound: (handle: String, displayNameHint: String?, host: String?, dataPort: Int, rssi: Int) -> Unit,
     val onPeerLost: (handle: String) -> Unit,
+    /**
+     * A datapath came up in which this device is the client: the peer (group
+     * owner) is reachable at host/port and must be dialed by Dart.
+     */
+    val onPeerReachable: (handle: String, host: String, port: Int) -> Unit,
     val onError: (code: String, message: String) -> Unit,
 )
 

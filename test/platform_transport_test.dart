@@ -368,6 +368,61 @@ void main() {
       },
     );
 
+    test(
+      'dials the peer when native reports this device joined as the client',
+      () async {
+        final hub = _Hub();
+        final fakeA = _FakeGateway('aaaa', hub);
+        final fakeB = _FakeGateway('bbbb', hub);
+        final a = PlatformTransport(gateway: fakeA, localId: 'aaaa');
+        final b = PlatformTransport(gateway: fakeB, localId: 'bbbb');
+        addTearDown(() async {
+          await a.dispose();
+          await b.dispose();
+        });
+        await a.start();
+        await b.start();
+
+        // Listen first: incoming connections are delivered on broadcast streams.
+        final incomingA = a.incomingConnections.first;
+        final incomingB = b.incomingConnections.first;
+
+        // The group formed, but Alice was not the side that asked for it, so
+        // native hands her the owner's endpoint instead of a connect() result.
+        fakeA.emit(<String, Object?>{
+          'event': PlatformEventNames.peerReachable,
+          'handle': 'bbbb',
+          'host': '127.0.0.1',
+          'port': fakeB.dataPort,
+        });
+
+        final connA = await incomingA.timeout(const Duration(seconds: 5));
+        expect(connA.peerId, 'bbbb');
+        final connB = await incomingB.timeout(const Duration(seconds: 5));
+
+        final results = await Future.wait([
+          connA
+              .handshake(
+                PeerHandshakeRequest(
+                  identity: testRecord('Alice', 'fid_alice'),
+                  capabilities: const [TransportCapabilitiesKeys.cborEnvelopes],
+                ),
+              )
+              .timeout(const Duration(seconds: 5)),
+          connB
+              .handshake(
+                PeerHandshakeRequest(
+                  identity: testRecord('Bob', 'fid_bob'),
+                  capabilities: const [TransportCapabilitiesKeys.cborEnvelopes],
+                ),
+              )
+              .timeout(const Duration(seconds: 5)),
+        ]);
+        expect(results[0].identity.displayName, 'Bob');
+        expect(results[1].identity.displayName, 'Alice');
+      },
+    );
+
     test('fails honestly when the native side is unavailable', () async {
       final fake = _FakeGateway('aaaa', _Hub())
         ..startError = PlatformException(

@@ -215,6 +215,9 @@ class PlatformTransport implements Transport {
   final Map<String, _PlatformConnection> _connections =
       <String, _PlatformConnection>{};
 
+  /// Handles for which a client-side dial is currently in flight.
+  final Set<String> _dialing = <String>{};
+
   ServerSocket? _server;
   StreamSubscription<Map<String, Object?>>? _eventSub;
   bool _running = false;
@@ -425,6 +428,8 @@ class PlatformTransport implements Transport {
         _handlePeerFound(event);
       case PlatformEventNames.peerLost:
         _handlePeerLost(event);
+      case PlatformEventNames.peerReachable:
+        _handlePeerReachable(event);
       case PlatformEventNames.error:
         _emitError(
           TransportException(
@@ -468,6 +473,39 @@ class PlatformTransport implements Transport {
     if (handle == null) return;
     if (_endpoints.remove(handle) == null) return;
     if (!_lost.isClosed) _lost.add(handle);
+  }
+
+  /// Native reports that this device joined a Wi-Fi Direct group as the client
+  /// and the peer (the group owner) is reachable. Only the client can learn the
+  /// owner's address, so the client always opens the datapath.
+  void _handlePeerReachable(Map<String, Object?> event) {
+    final handle = event[PlatformPayloadKeys.handle] as String?;
+    final host = event[PlatformPayloadKeys.host] as String?;
+    final port = event[PlatformPayloadKeys.port] as int?;
+    if (handle == null || handle.isEmpty) return;
+    if (host == null || host.isEmpty || port == null || port <= 0) return;
+    if (!_running) return;
+    final existing = _connections[handle];
+    if (existing != null && existing.isOpen) return;
+    if (!_dialing.add(handle)) return;
+    unawaited(_dialReachable(handle, host, port));
+  }
+
+  Future<void> _dialReachable(String handle, String host, int port) async {
+    try {
+      final socket = await Socket.connect(host, port, timeout: connectTimeout);
+      if (!_running) {
+        socket.destroy();
+        return;
+      }
+      final connection = _makeConnection(socket, handle);
+      if (!_incoming.isClosed) _incoming.add(connection);
+    } catch (_) {
+      // The peer is gone or not listening yet. Discovery surfaces it again, and
+      // the routing engine keeps retrying while the peer is known.
+    } finally {
+      _dialing.remove(handle);
+    }
   }
 
   void _emitError(Object error) {
