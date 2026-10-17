@@ -67,23 +67,44 @@ class WifiP2pEngine(
 
     private var localService: WifiP2pDnsSdServiceInfo? = null
 
+    // Whether a DNS-SD service request is registered for the current channel.
+    // Registering twice returns BUSY, so add it once and re-add only if lost.
+    private var serviceRequestAdded = false
+
     // Per-session mapping from the handle a peer advertised to its device MAC.
     // Peers are addressed only by that advertised handle; the MAC is never
     // handed to Dart.
     private val addressByHandle = ConcurrentHashMap<String, String>()
 
-    // What peers advertised to us (populated from DNS-SD).
-    private val portByAddress = ConcurrentHashMap<String, Int>()
-    private val hintByAddress = ConcurrentHashMap<String, String>()
+    // What each advertised handle told us (populated from DNS-SD).
+    //
+    // These are keyed by the advertised *handle*, never by the device MAC: one
+    // device can have more than one DNS-SD service registered at once (for
+    // example a service left behind by an earlier run). Keying by MAC let the
+    // second service's port overwrite the first's, so every handle dialed the
+    // last-seen port — a wrong port, hence "Connection refused", and the peer
+    // never connected until the stale service happened to disappear.
+    private val portByHandle = ConcurrentHashMap<String, Int>()
+    private val hintByHandle = ConcurrentHashMap<String, String>()
+
+    // The session-start time each handle advertised (TXT "t"), used to pick the
+    // newest service when one device is advertising several. 0 when absent.
+    private val timeByHandle = ConcurrentHashMap<String, Long>()
 
     // Reverse of [addressByHandle]: the handle a peer advertised, by device MAC.
     // Needed when this device is invited into a group: WifiP2pGroup only reports
     // the owner's MAC address, not the handle it advertised.
     private val handleByAddress = ConcurrentHashMap<String, String>()
 
-    // The initiator's in-flight connect().
+    // The initiator's in-flight connect(): the handle being dialed and its MAC.
+    private var pendingHandle: String? = null
     private var pendingAddress: String? = null
     private var pendingResult: ((String?, Int?, String?, String?) -> Unit)? = null
+
+    // Stamped once per engine (i.e. once per app run) and advertised as the TXT
+    // "t" key. When an old run leaves its DNS-SD service registered, a discoverer
+    // uses "t" to tell this run's service (larger t) from the stale one.
+    private val sessionStartMs: Long = System.currentTimeMillis()
 
     override fun start(): Boolean {
         val p2p = this.p2p
@@ -118,20 +139,37 @@ class WifiP2pEngine(
         registerReceiver()
         // A group left behind by a previous run (a crash, a force-stop, a swipe
         // away) blocks discovery and would strand this device as a group owner
-        // that nobody dials. Drop it before starting over.
+        // that nobody dials. Drop it before starting over, then begin discovery,
+        // so the (asynchronous) group teardown cannot race the discovery request.
         p2p.requestConnectionInfo(channel) { info ->
+            if (!running) return@requestConnectionInfo
             if (info.groupFormed) {
                 Log.d(TAG, "start: removing a leftover Wi-Fi Direct group")
-                p2p.removeGroup(channel, actionListener("removeLeftoverGroup"))
+                p2p.removeGroup(
+                    channel,
+                    object : WifiP2pManager.ActionListener {
+                        override fun onSuccess() = beginDiscovery()
+                        override fun onFailure(reason: Int) {
+                            Log.e(TAG, "start: removeLeftoverGroup failed ($reason)")
+                            beginDiscovery()
+                        }
+                    },
+                )
+            } else {
+                beginDiscovery()
             }
         }
-        configureServiceDiscovery(channel)
-        p2p.discoverPeers(channel, actionListener("discoverPeers"))
-        startRediscovery()
         // The local advertisement is published once Dart sends an advertisement
         // carrying a valid dataPort (see updateAdvertisement).
-        Log.d(TAG, "start: discovery is running")
+        Log.d(TAG, "start: opening discovery")
         return true
+    }
+
+    private fun beginDiscovery() {
+        val channel = this.channel ?: return
+        if (!running) return
+        configureServiceDiscovery(channel)
+        startRediscovery()
     }
 
     override fun updateAdvertisement(advertisement: Advertisement) {
@@ -149,6 +187,9 @@ class WifiP2pEngine(
         val txt = mutableMapOf(
             "h" to advertised,
             "p" to advertisement.dataPort.toString(),
+            // Session-start stamp; lets a discoverer prefer this run's advert
+            // over one an earlier run left registered.
+            "t" to sessionStartMs.toString(),
         )
         advertisement.displayNameHint?.let { txt["d"] = it }
         Log.d(TAG, "advertise: handle=$advertised port=${advertisement.dataPort} hint=${advertisement.displayNameHint}")
@@ -174,7 +215,7 @@ class WifiP2pEngine(
             onResult(null, null, TransportContract.ERR_CONNECT_FAILED, "Unknown peer handle")
             return
         }
-        val port = portByAddress[address] ?: 0
+        val port = portByHandle[handle] ?: 0
         if (port <= 0) {
             onResult(
                 null,
@@ -203,6 +244,7 @@ class WifiP2pEngine(
                 )
                 return@requestConnectionInfo
             }
+            pendingHandle = handle
             pendingAddress = address
             pendingResult = onResult
             val config = WifiP2pConfig().apply {
@@ -253,13 +295,16 @@ class WifiP2pEngine(
                 runCatching { p2p.removeLocalService(channel, service, null) }
             }
             runCatching { p2p.clearLocalServices(channel, null) }
+            runCatching { p2p.clearServiceRequests(channel, null) }
             runCatching { p2p.cancelConnect(channel, null) }
             runCatching { p2p.removeGroup(channel, null) }
         }
+        serviceRequestAdded = false
         localService = null
         addressByHandle.clear()
-        portByAddress.clear()
-        hintByAddress.clear()
+        portByHandle.clear()
+        hintByHandle.clear()
+        timeByHandle.clear()
         handleByAddress.clear()
     }
 
@@ -296,44 +341,113 @@ class WifiP2pEngine(
         val p2p = this.p2p ?: return
         p2p.setDnsSdResponseListeners(
             channel,
-            // Service available: remember the advertised handle (the instance
-            // name). The richer TXT record below carries the port + hint and is
-            // what actually announces the peer.
-            WifiP2pManager.DnsSdServiceResponseListener { instanceName, _, device ->
-                val address = device?.deviceAddress ?: return@DnsSdServiceResponseListener
+            // The service record's instance name mirrors the handle, but the TXT
+            // record below is authoritative (it also carries the port and hint),
+            // so there is nothing to do here beyond logging.
+            WifiP2pManager.DnsSdServiceResponseListener { instanceName, _, _ ->
                 if (!instanceName.isNullOrEmpty()) {
-                    rememberPeer(address, normalizeHandle(instanceName))
+                    Log.d(TAG, "DNS-SD service: $instanceName")
                 }
             },
-            // TXT carries the peer handle ("h"), data port ("p") and hint ("d").
+            // TXT carries the peer handle ("h"), data port ("p"), hint ("d") and
+            // session-start time ("t").
             WifiP2pManager.DnsSdTxtRecordListener { _, txt, device ->
                 val address = device?.deviceAddress ?: return@DnsSdTxtRecordListener
-                txt["p"]?.toIntOrNull()?.let { portByAddress[address] = it }
-                txt["d"]?.let { hintByAddress[address] = it }
                 val advertised = txt["h"]?.let { normalizeHandle(it) }?.takeIf { it.isNotEmpty() }
-                Log.d(TAG, "DNS-SD TXT: h=${txt["h"]} p=${txt["p"]} d=${txt["d"]}")
-                if (advertised == null) return@DnsSdTxtRecordListener
-                rememberPeer(address, advertised)
-                events.onPeerFound(
-                    advertised,
-                    hintByAddress[address],
-                    null,
-                    portByAddress[address] ?: 0,
-                    0,
-                )
+                    ?: return@DnsSdTxtRecordListener
+                val port = txt["p"]?.toIntOrNull() ?: 0
+                val hint = txt["d"]
+                val seenAt = txt["t"]?.toLongOrNull() ?: 0L
+                Log.d(TAG, "DNS-SD TXT: h=${txt["h"]} p=${txt["p"]} d=${txt["d"]} t=${txt["t"]}")
+                onServiceAdvertised(address, advertised, port, hint, seenAt)
             },
         )
-        p2p.addServiceRequest(
-            channel,
-            WifiP2pDnsSdServiceRequest.newInstance(),
-            actionListener("addServiceRequest"),
-        )
+        ensureServiceRequest(p2p, channel)
         p2p.discoverServices(channel, actionListener("discoverServices"))
     }
 
-    private fun rememberPeer(address: String, advertised: String) {
+    /**
+     * Registers the DNS-SD service request exactly once for this channel.
+     *
+     * Peers are found only through their advertised service, so this request (and
+     * `discoverServices`) is the whole discovery path. Registering it twice
+     * returns BUSY, which is treated as "already registered".
+     */
+    private fun ensureServiceRequest(p2p: WifiP2pManager, channel: WifiP2pManager.Channel) {
+        if (serviceRequestAdded) return
+        p2p.addServiceRequest(
+            channel,
+            WifiP2pDnsSdServiceRequest.newInstance(),
+            object : WifiP2pManager.ActionListener {
+                override fun onSuccess() {
+                    serviceRequestAdded = true
+                    Log.d(TAG, "action addServiceRequest: success")
+                }
+
+                override fun onFailure(reason: Int) {
+                    if (reason == WifiP2pManager.BUSY) {
+                        // A request is already registered for this channel.
+                        serviceRequestAdded = true
+                    }
+                    Log.e(TAG, "action addServiceRequest: failed ($reason)")
+                }
+            },
+        )
+    }
+
+    /**
+     * Handles one advertised DNS-SD service.
+     *
+     * A single device can have several FindIt services registered at once: a
+     * Wi-Fi Direct service registration survives its app being killed, so an
+     * earlier run's advert lingers and Android keeps returning it. Treating each
+     * service as its own peer showed the same phone twice and made the app dial a
+     * dead port. Here one MAC is one peer: the newest service (largest TXT "t")
+     * wins, any service it supersedes is reported lost so Dart drops the row, and
+     * each remaining handle keeps its own port.
+     */
+    private fun onServiceAdvertised(
+        address: String,
+        advertised: String,
+        port: Int,
+        hint: String?,
+        timeMs: Long,
+    ) {
         addressByHandle[advertised] = address
-        handleByAddress[address] = advertised
+        portByHandle[advertised] = port
+        if (hint != null) hintByHandle[advertised] = hint
+        timeByHandle[advertised] = timeMs
+
+        val current = handleByAddress[address]
+        if (current == null) {
+            handleByAddress[address] = advertised
+            events.onPeerFound(advertised, hint, null, port, 0)
+            return
+        }
+        if (current == advertised) {
+            events.onPeerFound(advertised, hint, null, port, 0)
+            return
+        }
+
+        // A second service on the same device. Keep the newer session (larger
+        // "t"); ignore an older leftover rather than showing the device twice.
+        val currentTime = timeByHandle[current] ?: 0L
+        if (timeMs > currentTime) {
+            handleByAddress[address] = advertised
+            forgetHandle(current)
+            events.onPeerFound(advertised, hint, null, port, 0)
+        } else {
+            Log.d(TAG, "DNS-SD: ignoring stale service h=$advertised (current=$current)")
+        }
+    }
+
+    /** Drops a superseded handle's state and tells Dart it is gone. */
+    private fun forgetHandle(advertised: String) {
+        addressByHandle.remove(advertised)
+        portByHandle.remove(advertised)
+        hintByHandle.remove(advertised)
+        timeByHandle.remove(advertised)
+        events.onPeerLost(advertised)
     }
 
     /**
@@ -408,11 +522,11 @@ class WifiP2pEngine(
             return
         }
 
-        val requested = pendingAddress
+        val requested = pendingHandle
         if (requested != null) {
             // We asked to connect and ended up as the client: dial the owner we
-            // invited, using the port it advertised.
-            val port = portByAddress[requested] ?: 0
+            // invited, using the port the handle we dialed advertised.
+            val port = portByHandle[requested] ?: 0
             if (port <= 0) {
                 resolvePending(
                     null,
@@ -431,8 +545,8 @@ class WifiP2pEngine(
         // reachable endpoint to Dart, which opens the datapath.
         p2p.requestGroupInfo(channel) { group ->
             val ownerMac = group?.owner?.deviceAddress
-            val port = ownerMac?.let { portByAddress[it] } ?: 0
             val handle = ownerMac?.let { handleByAddress[it] }
+            val port = handle?.let { portByHandle[it] } ?: 0
             if (port <= 0 || handle.isNullOrEmpty()) {
                 Log.e(TAG, "join: owner unknown (mac=$ownerMac port=$port)")
                 events.onError(
@@ -450,6 +564,7 @@ class WifiP2pEngine(
         cancelConnectTimeout()
         val callback = pendingResult
         pendingResult = null
+        pendingHandle = null
         pendingAddress = null
         callback?.invoke(host, port, code, msg)
     }
@@ -495,8 +610,13 @@ class WifiP2pEngine(
             val p2p = this@WifiP2pEngine.p2p ?: return
             val channel = this@WifiP2pEngine.channel ?: return
             if (!running) return
-            Log.d(TAG, "rediscover: discoverPeers + discoverServices")
-            p2p.discoverPeers(channel, actionListener("rediscoverPeers"))
+            // Re-issue DNS-SD service discovery only. Android allows just one
+            // discovery mode at a time, and raw peer discovery (discoverPeers)
+            // cancels service discovery — which used to leave the first minutes
+            // after launch finding nothing. Peers come from their advertised
+            // service, so service discovery is all we need.
+            ensureServiceRequest(p2p, channel)
+            Log.d(TAG, "rediscover: discoverServices")
             p2p.discoverServices(channel, actionListener("rediscoverServices"))
             mainHandler.postDelayed(this, REDISCOVER_INTERVAL_MS)
         }

@@ -57,6 +57,12 @@ class PlatformTransportChannel private constructor(
          * `configureFlutterEngine`.
          */
         fun install(activity: Activity, messenger: BinaryMessenger) {
+            // A previous Activity's channel may still be alive (its FlutterEngine
+            // can outlive the Activity, and the native broadcast receiver keeps
+            // this object referenced). Tear it down first: otherwise its Wi-Fi
+            // Direct DNS-SD advert stays registered and peers keep discovering a
+            // service that is no longer listening.
+            instance?.teardown()
             instance = PlatformTransportChannel(activity, messenger)
         }
 
@@ -126,10 +132,7 @@ class PlatformTransportChannel private constructor(
 
             TransportContract.METHOD_DISPOSE -> {
                 NetworkingService.stop(appContext)
-                bridge.dispose()
-                methodChannel.setMethodCallHandler(null)
-                eventChannel.setStreamHandler(null)
-                instance = null
+                teardown()
                 result.success(null)
             }
 
@@ -236,6 +239,18 @@ class PlatformTransportChannel private constructor(
 
     override fun onCancel(arguments: Any?) {
         eventSink = null
+    }
+
+    /**
+     * Releases the native transport: stops Wi-Fi Direct discovery/advertising and
+     * the group, then unregisters the channels. Idempotent.
+     */
+    private fun teardown() {
+        bridge.dispose()
+        methodChannel.setMethodCallHandler(null)
+        eventChannel.setStreamHandler(null)
+        eventSink = null
+        if (instance === this) instance = null
     }
 
     private fun handlePermissionResult(
