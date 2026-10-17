@@ -112,6 +112,15 @@ class WifiP2pEngine(
         this.channel = channel
         running = true
         registerReceiver()
+        // A group left behind by a previous run (a crash, a force-stop, a swipe
+        // away) blocks discovery and would strand this device as a group owner
+        // that nobody dials. Drop it before starting over.
+        p2p.requestConnectionInfo(channel) { info ->
+            if (info.groupFormed) {
+                Log.d(TAG, "start: removing a leftover Wi-Fi Direct group")
+                p2p.removeGroup(channel, actionListener("removeLeftoverGroup"))
+            }
+        }
         configureServiceDiscovery(channel)
         p2p.discoverPeers(channel, actionListener("discoverPeers"))
         startRediscovery()
