@@ -13,8 +13,10 @@ local network, and can be carried onward by other phones you pass by
 ![FindIt preview: accept the terms, flip the one switch, chat with text and PNG](docs/preview.svg)
 
 > **It's a prototype.** FindIt is a working but **unaudited** MVP. Delivery is
-> best-effort, the Wi-Fi Direct radio path has not yet been run on two physical
-> phones, and you shouldn't rely on it for anything important.
+> best-effort, and you shouldn't rely on it for anything important. The Wi-Fi
+> Direct radio path *has* been run on two physical phones (a Samsung SM-G990E and
+> a Motorola Edge 60 Pro), which exchanged text and PNG messages both ways — but
+> one pair of devices is not a field test.
 
 ---
 

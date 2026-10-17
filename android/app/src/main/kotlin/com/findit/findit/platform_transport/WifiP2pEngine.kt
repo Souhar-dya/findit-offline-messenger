@@ -40,10 +40,11 @@ import java.util.concurrent.ConcurrentHashMap
  * advertised handle is known, so Dart never sees a handle the peer did not
  * choose.
  *
- * VERIFICATION: this compiles and passes Android lint, but exercising real
- * discovery/group formation requires two physical devices with Wi-Fi Direct
- * hardware in range — the emulator does not emulate the P2P radio. Treat the
- * on-device behavior as untested until validated on hardware.
+ * VERIFICATION: validated on two physical devices (Samsung SM-G990E and
+ * Motorola Edge 60 Pro, Android 14/15): mutual discovery over DNS-SD, group
+ * formation, the handshake and two-way text/image delivery with receipts all
+ * work. The emulator cannot exercise this path — it does not emulate the P2P
+ * radio — so re-validate on hardware after changing this file.
  */
 @SuppressLint("MissingPermission", "DEPRECATION")
 class WifiP2pEngine(
