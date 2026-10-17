@@ -143,6 +143,13 @@ abstract class Transport {
   /// as an identity.
   String get localId;
 
+  /// The local handle that applies to the link carrying [peerId].
+  ///
+  /// A single-link transport always returns [localId]. A composite transport
+  /// that runs several radios at once must answer per link, so the dial
+  /// tie-break compares matching handles on both sides.
+  String localIdFor(String peerId);
+
   TransportCapabilities get capabilities;
 
   bool get isRunning;

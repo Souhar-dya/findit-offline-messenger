@@ -248,6 +248,9 @@ class PlatformTransport implements Transport {
   @override
   final String localId;
 
+  @override
+  String localIdFor(String peerId) => localId;
+
   final PlatformTransportGateway gateway;
   final Duration connectTimeout;
   final int maxFrameBytes;

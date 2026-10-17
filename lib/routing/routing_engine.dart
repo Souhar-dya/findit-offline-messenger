@@ -223,9 +223,10 @@ class RoutingEngine {
 
   /// Deterministic tie-break so two peers never both initiate a connection to
   /// each other. This only orders ephemeral transport handles; it has no
-  /// security meaning.
+  /// security meaning. [Transport.localIdFor] keeps it correct when one side
+  /// runs several radios at once.
   bool _shouldInitiate(String peerHandle) =>
-      _transport.localId.compareTo(peerHandle) < 0;
+      _transport.localIdFor(peerHandle).compareTo(peerHandle) < 0;
 
   void _accept(TransportConnection connection) {
     unawaited(_runSession(connection, incoming: true));

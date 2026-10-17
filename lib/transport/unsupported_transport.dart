@@ -25,6 +25,9 @@ class UnsupportedWifiTransport implements Transport {
   final String localId;
 
   @override
+  String localIdFor(String peerId) => localId;
+
+  @override
   String get id => 'wifi-p2p-unavailable';
 
   @override

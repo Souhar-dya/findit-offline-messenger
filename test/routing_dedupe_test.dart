@@ -75,6 +75,9 @@ class _FakeTransport implements Transport {
   @override
   final String localId;
 
+  @override
+  String localIdFor(String peerId) => localId;
+
   final StreamController<TransportConnection> _incoming =
       StreamController<TransportConnection>.broadcast();
   final StreamController<TransportPeer> _discovered =

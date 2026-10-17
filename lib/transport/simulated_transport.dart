@@ -66,6 +66,9 @@ class SimulatedTransport implements Transport {
   @override
   final String localId;
 
+  @override
+  String localIdFor(String peerId) => localId;
+
   /// Optional artificial latency applied to every transfer, to make races in
   /// the routing layer observable in tests.
   final Duration exchangeDelay;
