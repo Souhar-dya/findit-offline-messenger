@@ -60,7 +60,8 @@ class NearbyScreen extends StatelessWidget {
                 ? Text(
                     controller.isRunning
                         ? 'Searching for devices around you…'
-                        : 'Start looking to find devices around you.',
+                        : 'Networking is off, so nothing is being looked for. '
+                              'Turn it on in Profile.',
                   )
                 : Column(
                     children: [
@@ -82,7 +83,7 @@ class NearbyScreen extends StatelessWidget {
   }
 }
 
-/// The primary on/off control plus the two blocking start-up problems.
+/// Read-only status: the master switch lives on the Profile tab.
 class _StatusCard extends StatelessWidget {
   const _StatusCard({required this.controller, required this.simulated});
 
@@ -102,47 +103,8 @@ class _StatusCard extends StatelessWidget {
             running
                 ? 'Keep Wi-Fi on and stay nearby. Your devices connect to '
                       'each other by themselves.'
-                : 'Turn on to discover and message other FindIt devices '
-                      'around you.',
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                // Start must never be disabled by the capability report:
-                // before the transport has started it reports nothing, so
-                // gating on it would leave the button dead on first run.
-                onPressed: controller.busy
-                    ? null
-                    : (running
-                          ? controller.stopTransport
-                          : controller.startTransport),
-                icon: Icon(running ? Icons.stop : Icons.search),
-                label: Text(running ? 'Stop' : 'Start looking'),
-              ),
-              if (!running && controller.needsWifi)
-                OutlinedButton.icon(
-                  onPressed: controller.busy ? null : controller.enableWifi,
-                  icon: const Icon(Icons.wifi),
-                  label: const Text('Turn on Wi-Fi'),
-                ),
-              if (!running && controller.needsPermission) ...[
-                OutlinedButton.icon(
-                  onPressed: controller.busy ? null : controller.startTransport,
-                  icon: const Icon(Icons.verified_user),
-                  label: const Text('Allow access'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: controller.busy
-                      ? null
-                      : controller.openAppSettings,
-                  icon: const Icon(Icons.settings),
-                  label: const Text('Open settings'),
-                ),
-              ],
-            ],
+                : 'FindIt is not looking right now. Switch it on in Profile → '
+                      'FindIt network to discover devices around you.',
           ),
         ],
       ),
