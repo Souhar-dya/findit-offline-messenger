@@ -81,6 +81,24 @@ class PlatformMethodNames {
   /// Opens this app's system settings page (e.g. after the user permanently
   /// denied a permission). No args.
   static const String openAppSettings = 'openAppSettings';
+
+  /// Shows a local notification for a message addressed to this device. Args:
+  /// `{ title, body }`. Native only ever posts this for the local user; the Dart
+  /// side calls it exclusively for an inbound message that decrypted to this
+  /// identity.
+  static const String notifyMessage = 'notifyMessage';
+
+  /// Requests the OS notification permission (Android 13+).
+  /// -> `{ granted: bool }`.
+  static const String requestNotificationPermission =
+      'requestNotificationPermission';
+
+  /// Reports whether a Wi-Fi hotspot (SoftAP) is currently running, which
+  /// commonly prevents Wi-Fi Direct group formation. -> `{ enabled: bool }`.
+  static const String isHotspotEnabled = 'isHotspotEnabled';
+
+  /// Opens the system hotspot/tethering settings. No args.
+  static const String openHotspotSettings = 'openHotspotSettings';
 }
 
 /// Event names carried on the [PlatformChannelNames.events] channel, each as a
@@ -133,6 +151,8 @@ class PlatformPayloadKeys {
 
   static const String code = 'code';
   static const String message = 'message';
+  static const String title = 'title';
+  static const String body = 'body';
 }
 
 /// `PlatformException.code` values emitted by the native side.

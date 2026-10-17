@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../demo/simulated_peer_agent.dart';
+import '../../domain/entities/chat_message.dart';
 import '../../transport/platform_transport.dart';
 import '../../transport/simulated_transport.dart';
 import '../config/app_config.dart';
@@ -19,7 +20,14 @@ class AppServices extends ChangeNotifier {
     this.simulatedNetwork,
     this.databaseFactory,
     this.demoDatabasePath,
-  });
+  }) {
+    // Announce inbound messages through the OS. The stream only carries
+    // messages that decrypted to this device's own identity, so a notification
+    // is never raised for a message addressed to anyone else.
+    _incomingSub = core.messageService.incomingMessages.listen(
+      _onIncomingMessage,
+    );
+  }
 
   final CoreServices core;
 
@@ -31,6 +39,8 @@ class AppServices extends ChangeNotifier {
   SimulatedPeerAgent? _demoPeer;
   bool _startingDemo = false;
   String? _demoError;
+
+  StreamSubscription<ChatMessage>? _incomingSub;
 
   bool get isDemoRunning => _demoPeer != null;
   bool get isStartingDemo => _startingDemo;
@@ -102,6 +112,9 @@ class AppServices extends ChangeNotifier {
     if (!core.settings.consentAccepted) return;
     if (!core.settings.networkingEnabled) return; // radio silent
     if (!core.identityHolder.hasIdentity) return;
+    // Ask (once) for the notification permission so inbound messages can be
+    // announced. A denial only means quiet arrivals; it never blocks this.
+    await ensureNotificationPermission();
     if (!core.routingEngine.isRunning) {
       await core.routingEngine.start();
     }
@@ -147,6 +160,62 @@ class AppServices extends ChangeNotifier {
 
   Future<bool> requestWifiEnable() async =>
       await platformTransport?.gateway.requestWifiEnable() ?? true;
+
+  /// Whether a Wi-Fi hotspot is running on this device. Only meaningful for the
+  /// native transport; the simulated one reports false.
+  Future<bool> isHotspotEnabled() async =>
+      await platformTransport?.gateway.isHotspotEnabled() ?? false;
+
+  /// Opens the system hotspot/tethering settings.
+  Future<void> openHotspotSettings() async {
+    await platformTransport?.gateway.openHotspotSettings();
+  }
+
+  bool _notificationPermissionRequested = false;
+
+  /// Asks the OS for the notification permission at most once per app run.
+  /// Safe and silent when not running the native transport.
+  Future<void> ensureNotificationPermission() async {
+    if (_notificationPermissionRequested) return;
+    _notificationPermissionRequested = true;
+    final transport = platformTransport;
+    if (transport == null) return;
+    try {
+      await transport.gateway.requestNotificationPermission();
+    } catch (_) {
+      // Optional: a denial only means quiet arrivals.
+    }
+  }
+
+  /// Posts a local notification for an accepted inbound message.
+  ///
+  /// The [MessageService.incomingMessages] stream only emits messages that
+  /// decrypted for this identity, so a notification is never raised for a
+  /// message addressed to anyone else.
+  void _onIncomingMessage(ChatMessage message) {
+    final transport = platformTransport;
+    if (transport == null) return;
+    unawaited(_notifyIncoming(transport, message));
+  }
+
+  Future<void> _notifyIncoming(
+    PlatformTransport transport,
+    ChatMessage message,
+  ) async {
+    try {
+      final sender = await core.identities.find(message.senderId);
+      final name = sender?.record.displayName ?? 'Someone nearby';
+      final body = message.payloadType == MessagePayloadType.png
+          ? 'Photo'
+          : (message.text ?? 'New message');
+      await transport.gateway.notifyMessage(
+        title: 'New message from $name',
+        body: body,
+      );
+    } catch (_) {
+      // A missing notification must never affect message delivery.
+    }
+  }
 
   Future<bool> arePermissionsGranted() async =>
       await platformTransport?.gateway.checkPermissions() ?? true;
@@ -233,6 +302,7 @@ class AppServices extends ChangeNotifier {
 
   @override
   void dispose() {
+    unawaited(_incomingSub?.cancel());
     unawaited(_demoPeer?.stop());
     unawaited(core.dispose());
     super.dispose();

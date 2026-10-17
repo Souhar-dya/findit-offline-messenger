@@ -56,7 +56,7 @@ class NearbyScreen extends StatelessWidget {
           ),
           SectionCard(
             title: 'Devices nearby',
-            child: controller.knownPeers.isEmpty
+            child: controller.peersInRange.isEmpty
                 ? Text(
                     controller.isRunning
                         ? 'Searching for devices around you…'
@@ -65,7 +65,7 @@ class NearbyScreen extends StatelessWidget {
                   )
                 : Column(
                     children: [
-                      for (final peer in controller.knownPeers)
+                      for (final peer in controller.peersInRange)
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(Icons.devices_other),

@@ -235,7 +235,12 @@ class RoutingEngine {
     TransportConnection connection, {
     required bool incoming,
   }) async {
-    if (_sessions.containsKey(connection.peerId)) return;
+    if (_sessions.containsKey(connection.peerId)) {
+      // A second connection for a handle we already hold (a repeated dial). Close
+      // it instead of leaking a socket that nothing would ever read from.
+      await connection.close();
+      return;
+    }
     final session = _Session(connection);
     _sessions[connection.peerId] = session;
 
@@ -270,6 +275,19 @@ class RoutingEngine {
       }
       session.identityId = result.identity.identityId;
       session.displayName = result.identity.displayName;
+      // One peer, one session. The same device can be reached over two sockets:
+      // the Wi-Fi Direct group owner keys an inbound socket by ip:port while the
+      // client keys its outbound socket by the rotating handle, and a
+      // re-discovery can dial again while a session is still live. The completed
+      // handshake proves both sockets are the same person, so keep the session we
+      // already had and drop the spare: "Connected" must never list a peer twice.
+      final existing = _otherSessionWithIdentity(session, result.identity.identityId);
+      if (existing != null) {
+        _sessions.remove(connection.peerId);
+        await session.dispose();
+        _emitPeers();
+        return;
+      }
       await _rememberPeer(result.identity);
       await connection.sendSummary(await _buildSummary());
       await _forwardTo(session);
@@ -508,6 +526,16 @@ class RoutingEngine {
     if (_sessions.remove(session.connection.peerId) != null) {
       _emitPeers();
     }
+  }
+
+  /// Another live session that has already proven the same permanent identity as
+  /// [session]. Used to collapse two sockets that turn out to be one person.
+  _Session? _otherSessionWithIdentity(_Session session, String identityId) {
+    for (final other in _sessions.values) {
+      if (identical(other, session)) continue;
+      if (other.identityId == identityId && other.connection.isOpen) return other;
+    }
+    return null;
   }
 
   Future<void> dispose() async {

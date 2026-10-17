@@ -12,11 +12,11 @@ local network, and can be carried onward by other phones you pass by
 
 ![FindIt preview: accept the terms, flip the one switch, chat with text and PNG](docs/preview.svg)
 
-> **It's a prototype.** FindIt is a working but **unaudited** MVP. Delivery is
-> best-effort, and you shouldn't rely on it for anything important. The Wi-Fi
-> Direct radio path *has* been run on two physical phones (a Samsung SM-G990E and
-> a Motorola Edge 60 Pro), which exchanged text and PNG messages both ways — but
-> one pair of devices is not a field test.
+> **Status: 1.0.0.** FindIt is a complete, self-contained app, but it is still
+> **unaudited**: delivery is best-effort, so don't rely on it for anything
+> critical. The Wi-Fi Direct radio path has been run on two physical phones (a
+> Samsung SM-G990E and a Motorola Edge 60 Pro), which exchanged text and PNG
+> messages both ways.
 
 ---
 
@@ -138,12 +138,12 @@ genuinely discovered — it never invents devices to look busy.
 
 ## Honest status & limitations
 
-- **Prototype, not a product.** FindIt is **unaudited**; treat it as a protocol
-  and UX prototype.
-- **The radio path is unverified.** The Android Wi-Fi Direct fabric is
-  implemented and unit-tested, but discovery/group formation needs **two physical
-  phones** and hasn't been run that way yet. Wi-Fi Aware is a stub; the iOS side
-  is unverified.
+- **Unaudited.** FindIt has not had an independent security audit, so treat the
+  cryptography as reviewed by its authors, not as certified.
+- **Android over Wi-Fi Direct is verified on real hardware.** Discovery, group
+  formation and two-way text + PNG delivery with delivery receipts were run on a
+  Samsung SM-G990E and a Motorola Edge 60 Pro. **Wi-Fi Aware is not implemented**
+  and the **iOS build is unverified** (it needs an Apple developer account).
 - **Delivery is best-effort, never guaranteed.** A message moves only while the
   sender — and any carrier along the way — has their switch on, and expires after
   24 hours.
@@ -165,18 +165,26 @@ flutter pub get
 flutter run                              # first run: terms → the switch → onboarding
 
 flutter analyze
-flutter test                             # 114 Dart tests
+flutter test                             # 125 Dart tests
 
 flutter build apk --release               # universal APK
 flutter build apk --release --split-per-abi   # + arm64-v8a / armeabi-v7a / x86_64
 ```
 
+The version in `pubspec.yaml` has two parts, `version: <name>+<build>`:
+
+- the part before `+` is the **version name** people see (for example `1.0.0`);
+- the number **after** `+` is the **build number** — a plain counter, not a
+  version. Android uses it as `versionCode` to decide whether an install is an
+  upgrade, so it must **increase on every release** even when the visible name
+  stays the same (for example `1.0.0+17` then `1.0.0+18`).
+
 Releases are cut by pushing a tag (keep it in step with `version:` in
 `pubspec.yaml`):
 
 ```sh
-git tag v0.2.0
-git push origin v0.2.0
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 `android/key.properties` + the upload keystore are git-ignored; CI restores them
@@ -184,6 +192,6 @@ from repository secrets, and falls back to the debug key when they're absent.
 
 ---
 
-*FindIt is a privacy-focused MVP built around a replaceable peer-to-peer
-transport. See the repository's commit history and workflows for how it is built
-and tested.*
+*FindIt is a privacy-focused, decentralized messenger built around a replaceable
+peer-to-peer transport. See the repository's commit history and workflows for how
+it is built and tested.*

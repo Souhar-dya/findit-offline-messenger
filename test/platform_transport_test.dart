@@ -101,6 +101,21 @@ class _FakeGateway implements PlatformTransportGateway {
   @override
   Future<void> openAppSettings() async {}
 
+  @override
+  Future<void> notifyMessage({
+    required String title,
+    required String body,
+  }) async {}
+
+  @override
+  Future<bool> requestNotificationPermission() async => true;
+
+  @override
+  Future<bool> isHotspotEnabled() async => false;
+
+  @override
+  Future<void> openHotspotSettings() async {}
+
   bool wifiEnabled = true;
   bool permissionsGranted = true;
 

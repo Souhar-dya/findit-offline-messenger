@@ -30,6 +30,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   Timer? _wifiTimer;
   bool _wifiOff = false;
   bool _wifiPromptDismissed = false;
+  bool _hotspotOn = false;
+  bool _hotspotPromptDismissed = false;
 
   static const List<String> _titles = ['Chats', 'Friends', 'Nearby', 'Profile'];
 
@@ -72,13 +74,18 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     }
   }
 
-  /// Re-reads the Wi-Fi radio. Only the native transport depends on it and it
-  /// is only meaningful while networking is switched on.
+  /// Re-reads the Wi-Fi radio and hotspot state. Both only matter for the
+  /// native transport and only while networking is switched on.
   Future<void> _checkWifi() async {
     if (!mounted) return;
     final services = context.read<AppServices>();
     if (!services.requiresPlatformPermissions || !services.networkingEnabled) {
-      if (_wifiOff) setState(() => _wifiOff = false);
+      if (_wifiOff || _hotspotOn) {
+        setState(() {
+          _wifiOff = false;
+          _hotspotOn = false;
+        });
+      }
       return;
     }
     final enabled = await services.isWifiEnabled();
@@ -93,6 +100,14 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         _wifiPromptDismissed = false;
       });
     }
+    // A running hotspot (SoftAP) usually blocks Wi-Fi Direct, so warn the user
+    // rather than silently failing to find anyone.
+    final hotspot = await services.isHotspotEnabled();
+    if (!mounted) return;
+    if (hotspot != _hotspotOn) setState(() => _hotspotOn = hotspot);
+    if (!hotspot && _hotspotPromptDismissed) {
+      setState(() => _hotspotPromptDismissed = false);
+    }
     // A start that raced Wi-Fi off (the app was opened with the radio off) has
     // to be retried now that the radio is back, or nothing is ever discovered.
     await services.ensureNetworkingStarted();
@@ -101,6 +116,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   Future<void> _enableWifi() async {
     final services = context.read<AppServices>();
     await services.requestWifiEnable();
+    await _checkWifi();
+  }
+
+  Future<void> _openHotspotSettings() async {
+    await context.read<AppServices>().openHotspotSettings();
     await _checkWifi();
   }
 
@@ -155,7 +175,81 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
               onLater: _dismissWifiPrompt,
             ),
           ),
+        if (!_wifiOff && _hotspotOn && !_hotspotPromptDismissed)
+          Positioned.fill(
+            child: _HotspotPrompt(
+              onOpenSettings: _openHotspotSettings,
+              onLater: () => setState(() => _hotspotPromptDismissed = true),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+/// A dismissible overlay warning that the phone's hotspot is on, which usually
+/// stops Wi-Fi Direct from finding anyone.
+class _HotspotPrompt extends StatelessWidget {
+  const _HotspotPrompt({required this.onOpenSettings, required this.onLater});
+
+  final Future<void> Function() onOpenSettings;
+  final VoidCallback onLater;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.black54,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Card(
+            margin: const EdgeInsets.all(24),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.wifi_tethering_rounded,
+                    size: 56,
+                    color: theme.colorScheme.outline,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Turn off your hotspot',
+                    style: theme.textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your phone is sharing its connection. On most phones that '
+                    'stops FindIt from finding people nearby. Turn the hotspot '
+                    'off and your devices connect by themselves.',
+                    style: theme.textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: onLater,
+                        child: const Text('Not now'),
+                      ),
+                      const Spacer(),
+                      FilledButton.icon(
+                        onPressed: onOpenSettings,
+                        icon: const Icon(Icons.settings),
+                        label: const Text('Open settings'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

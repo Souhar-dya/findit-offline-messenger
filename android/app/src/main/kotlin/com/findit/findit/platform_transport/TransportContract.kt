@@ -24,6 +24,10 @@ object TransportContract {
     const val METHOD_REQUEST_WIFI_ENABLE = "requestWifiEnable"
     const val METHOD_CHECK_PERMISSIONS = "checkPermissions"
     const val METHOD_REQUEST_PERMISSIONS = "requestPermissions"
+    const val METHOD_NOTIFY_MESSAGE = "notifyMessage"
+    const val METHOD_REQUEST_NOTIFICATION_PERMISSION = "requestNotificationPermission"
+    const val METHOD_IS_HOTSPOT_ENABLED = "isHotspotEnabled"
+    const val METHOD_OPEN_HOTSPOT_SETTINGS = "openHotspotSettings"
     const val METHOD_OPEN_APP_SETTINGS = "openAppSettings"
 
     // Event names (mirror PlatformEventNames).
@@ -60,6 +64,9 @@ object TransportContract {
     const val KEY_DESCRIPTION = "description"
     const val KEY_CODE = "code"
     const val KEY_MESSAGE = "message"
+    const val KEY_TITLE = "title"
+    const val KEY_BODY = "body"
+    const val KEY_ENABLED = "enabled"
 
     // Error codes (mirror PlatformErrorCodes).
     const val ERR_UNAVAILABLE = "unavailable"

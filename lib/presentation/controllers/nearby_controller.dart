@@ -55,6 +55,32 @@ class NearbyController extends ChangeNotifier {
     return null;
   }
 
+  /// Discovered peers that do *not* already have a live session.
+  ///
+  /// A device we are already talking to must not be listed a second time under
+  /// "Devices nearby": it belongs under "Connected" only. We match on the
+  /// rotating handle when we have it (the client side of a Wi-Fi Direct group
+  /// keys its session by handle) and, because the group owner only learns an
+  /// inbound socket's ip:port, fall back to the advertised display hint, which
+  /// is the same name the handshake later reports.
+  List<TransportPeer> get peersInRange {
+    final connectedHandles = <String>{
+      for (final session in _sessions) session.transportPeerId,
+    };
+    final connectedNames = <String>{
+      for (final session in _sessions)
+        if (session.displayName != null && session.displayName!.isNotEmpty)
+          session.displayName!,
+    };
+    return [
+      for (final peer in _knownPeers)
+        if (!connectedHandles.contains(peer.peerId) &&
+            !(peer.displayNameHint != null &&
+                connectedNames.contains(peer.displayNameHint)))
+          peer,
+    ];
+  }
+
   Future<void> refresh() async {
     if (_disposed) return;
     _knownPeers = _services.core.transport.knownPeers;

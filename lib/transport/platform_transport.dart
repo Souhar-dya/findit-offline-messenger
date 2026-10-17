@@ -59,6 +59,22 @@ abstract class PlatformTransportGateway {
   /// permanently denied and must be granted manually.
   Future<void> openAppSettings();
 
+  /// Posts a local notification that a message addressed to this device
+  /// arrived. Called only for an inbound message that decrypted to the local
+  /// identity, so it can never notify someone else's message.
+  Future<void> notifyMessage({required String title, required String body});
+
+  /// Requests the OS notification permission (Android 13+). Returns whether
+  /// notifications may be posted.
+  Future<bool> requestNotificationPermission();
+
+  /// Whether a Wi-Fi hotspot (SoftAP) is currently running. A running hotspot
+  /// commonly blocks Wi-Fi Direct on the same radio.
+  Future<bool> isHotspotEnabled();
+
+  /// Opens the system hotspot/tethering settings so the user can turn it off.
+  Future<void> openHotspotSettings();
+
   Future<void> dispose();
 }
 
@@ -159,6 +175,38 @@ class MethodChannelPlatformTransportGateway
   @override
   Future<void> openAppSettings() async {
     await _channel.invokeMethod<void>(PlatformMethodNames.openAppSettings);
+  }
+
+  @override
+  Future<void> notifyMessage({
+    required String title,
+    required String body,
+  }) async {
+    await _channel.invokeMethod<void>(PlatformMethodNames.notifyMessage, {
+      PlatformPayloadKeys.title: title,
+      PlatformPayloadKeys.body: body,
+    });
+  }
+
+  @override
+  Future<bool> requestNotificationPermission() async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      PlatformMethodNames.requestNotificationPermission,
+    );
+    return (result?['granted'] as bool?) ?? false;
+  }
+
+  @override
+  Future<bool> isHotspotEnabled() async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      PlatformMethodNames.isHotspotEnabled,
+    );
+    return (result?['enabled'] as bool?) ?? false;
+  }
+
+  @override
+  Future<void> openHotspotSettings() async {
+    await _channel.invokeMethod<void>(PlatformMethodNames.openHotspotSettings);
   }
 
   @override
