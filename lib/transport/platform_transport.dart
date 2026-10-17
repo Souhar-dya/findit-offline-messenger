@@ -527,7 +527,13 @@ class PlatformTransport implements Transport {
   static String _randomHandle() {
     final random = Random.secure();
     final bytes = List<int>.generate(8, (_) => random.nextInt(256));
-    return base64Url.encode(bytes);
+    // Deliberately unpadded. The handle travels to the peer twice: once as the
+    // DNS-SD instance name and once as the "h" TXT value, and Android strips
+    // base64 padding from TXT values but not from instance names. Padding would
+    // therefore make the same peer look like two different devices (two
+    // sessions, a duplicate "Connected" row) and break the deterministic
+    // tie-break that decides which side dials.
+    return base64Url.encode(bytes).replaceAll('=', '');
   }
 }
 

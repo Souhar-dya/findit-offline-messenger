@@ -61,6 +61,9 @@ class WifiP2pEngine(
     private var receiver: BroadcastReceiver? = null
     private var running = false
 
+    // Fails a connect() whose Wi-Fi Direct group never forms.
+    private var connectTimeoutTask: Runnable? = null
+
     private var localService: WifiP2pDnsSdServiceInfo? = null
 
     // Per-session mapping from the handle a peer advertised to its device MAC.
@@ -214,7 +217,9 @@ class WifiP2pEngine(
                 object : WifiP2pManager.ActionListener {
                     override fun onSuccess() {
                         Log.d(TAG, "connect: p2p.connect() accepted; waiting for group formation")
-                        // Group formation continues via CONNECTION_CHANGED.
+                        // Group formation continues via CONNECTION_CHANGED. Guard
+                        // it so a peer that never joins cannot hang connect().
+                        scheduleConnectTimeout()
                     }
 
                     override fun onFailure(reason: Int) {
@@ -295,16 +300,18 @@ class WifiP2pEngine(
             // what actually announces the peer.
             WifiP2pManager.DnsSdServiceResponseListener { instanceName, _, device ->
                 val address = device?.deviceAddress ?: return@DnsSdServiceResponseListener
-                if (!instanceName.isNullOrEmpty()) rememberPeer(address, instanceName)
+                if (!instanceName.isNullOrEmpty()) {
+                    rememberPeer(address, normalizeHandle(instanceName))
+                }
             },
             // TXT carries the peer handle ("h"), data port ("p") and hint ("d").
             WifiP2pManager.DnsSdTxtRecordListener { _, txt, device ->
                 val address = device?.deviceAddress ?: return@DnsSdTxtRecordListener
                 txt["p"]?.toIntOrNull()?.let { portByAddress[address] = it }
                 txt["d"]?.let { hintByAddress[address] = it }
-                val advertised = txt["h"]
-                Log.d(TAG, "DNS-SD TXT: h=$advertised p=${txt["p"]} d=${txt["d"]}")
-                if (advertised.isNullOrEmpty()) return@DnsSdTxtRecordListener
+                val advertised = txt["h"]?.let { normalizeHandle(it) }?.takeIf { it.isNotEmpty() }
+                Log.d(TAG, "DNS-SD TXT: h=${txt["h"]} p=${txt["p"]} d=${txt["d"]}")
+                if (advertised == null) return@DnsSdTxtRecordListener
                 rememberPeer(address, advertised)
                 events.onPeerFound(
                     advertised,
@@ -328,6 +335,15 @@ class WifiP2pEngine(
         handleByAddress[address] = advertised
     }
 
+    /**
+     * Base64 padding does not survive the DNS-SD TXT round-trip, so it must not
+     * survive the instance-name one either. Without this the same peer is
+     * remembered under two handles ("abc=" and "abc"), which opens two sessions
+     * to one device and makes the deterministic dial tie-break compare
+     * different strings on the two devices.
+     */
+    private fun normalizeHandle(advertised: String): String = advertised.trimEnd('=')
+
     private fun onConnectionChanged(intent: Intent) {
         // Do NOT read EXTRA_NETWORK_INFO: it is deprecated and returns null on
         // Android 10+, which used to make this bail out and leave connect()
@@ -347,14 +363,13 @@ class WifiP2pEngine(
                 "pending=$pendingAddress",
         )
         if (!info.groupFormed) {
-            if (pendingResult != null) {
-                resolvePending(
-                    null,
-                    null,
-                    TransportContract.ERR_CONNECT_FAILED,
-                    "Wi-Fi Direct group closed before a datapath was established",
-                )
-            }
+            // A group that is still forming reports groupFormed=false, and the
+            // formed state only arrives in a later broadcast. Treating that as
+            // "the group closed" failed connect() the instant it was requested,
+            // so the datapath was only ever rescued by the client-dial path.
+            // Wait instead: connect() has its own timeout for a peer that never
+            // shows up.
+            Log.d(TAG, "onConnectionInfo: no group yet (pending=${pendingAddress != null})")
             return
         }
         val p2p = this.p2p
@@ -431,10 +446,35 @@ class WifiP2pEngine(
     }
 
     private fun resolvePending(host: String?, port: Int?, code: String?, msg: String?) {
+        cancelConnectTimeout()
         val callback = pendingResult
         pendingResult = null
         pendingAddress = null
         callback?.invoke(host, port, code, msg)
+    }
+
+    /** Fails a connect() whose group never formed, so it cannot hang forever. */
+    private fun scheduleConnectTimeout() {
+        cancelConnectTimeout()
+        val task = Runnable {
+            connectTimeoutTask = null
+            if (pendingResult != null) {
+                Log.e(TAG, "connect: timed out waiting for Wi-Fi Direct group formation")
+                resolvePending(
+                    null,
+                    null,
+                    TransportContract.ERR_CONNECT_FAILED,
+                    "Wi-Fi Direct group formation timed out",
+                )
+            }
+        }
+        connectTimeoutTask = task
+        mainHandler.postDelayed(task, CONNECT_TIMEOUT_MS)
+    }
+
+    private fun cancelConnectTimeout() {
+        connectTimeoutTask?.let { mainHandler.removeCallbacks(it) }
+        connectTimeoutTask = null
     }
 
     private fun actionListener(label: String) = object : WifiP2pManager.ActionListener {
@@ -478,5 +518,8 @@ class WifiP2pEngine(
 
         /** Android stops Wi-Fi Direct discovery after a while, so re-issue it. */
         const val REDISCOVER_INTERVAL_MS = 30_000L
+
+        /** How long to wait for a requested Wi-Fi Direct group to form. */
+        const val CONNECT_TIMEOUT_MS = 20_000L
     }
 }

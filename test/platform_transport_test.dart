@@ -302,6 +302,21 @@ void main() {
     );
 
     test(
+      'generates a handle without base64 padding',
+      () {
+        // The handle is advertised twice: as the DNS-SD instance name and as
+        // the "h" TXT value. Android strips base64 padding from TXT values but
+        // not from instance names, so padded handles made one peer look like
+        // two devices (two sessions, a duplicate "Connected" row) and broke the
+        // dial tie-break. Regression guard for that.
+        final transport = PlatformTransport(gateway: _FakeGateway('x', _Hub()));
+        addTearDown(transport.dispose);
+        expect(transport.localId, isNotEmpty);
+        expect(transport.localId, isNot(contains('=')));
+      },
+    );
+
+    test(
       'exchanges handshake, summaries and bundles over a real data channel',
       () async {
         final hub = _Hub();
