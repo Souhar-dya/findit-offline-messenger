@@ -85,12 +85,17 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     if (!mounted) return;
     if (!enabled) {
       if (!_wifiOff) setState(() => _wifiOff = true);
-    } else if (_wifiOff || _wifiPromptDismissed) {
+      return;
+    }
+    if (_wifiOff || _wifiPromptDismissed) {
       setState(() {
         _wifiOff = false;
         _wifiPromptDismissed = false;
       });
     }
+    // A start that raced Wi-Fi off (the app was opened with the radio off) has
+    // to be retried now that the radio is back, or nothing is ever discovered.
+    await services.ensureNetworkingStarted();
   }
 
   Future<void> _enableWifi() async {

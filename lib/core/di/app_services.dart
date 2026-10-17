@@ -48,7 +48,7 @@ class AppServices extends ChangeNotifier {
         core.settings.consentAccepted &&
         core.settings.networkingEnabled &&
         _permissionsGranted) {
-      await startNetworking();
+      await ensureNetworkingStarted();
     }
   }
 
@@ -57,7 +57,7 @@ class AppServices extends ChangeNotifier {
   Future<void> acceptConsent() async {
     await core.settings.acceptConsent();
     if (core.identityHolder.hasIdentity) {
-      await startNetworking();
+      await ensureNetworkingStarted();
     }
     notifyListeners();
   }
@@ -70,7 +70,7 @@ class AppServices extends ChangeNotifier {
   Future<void> setNetworkingEnabled(bool enabled) async {
     await core.settings.setNetworkingEnabled(enabled);
     if (enabled) {
-      await startNetworking();
+      await ensureNetworkingStarted();
     } else {
       // Radio silent also means the in-process demo peer stops.
       await stopDemoPeer();
@@ -112,6 +112,21 @@ class AppServices extends ChangeNotifier {
     core.maintenance.stop();
     if (core.routingEngine.isRunning) {
       await core.routingEngine.stop();
+    }
+  }
+
+  /// Re-arms discovery when the app should be listening but is not.
+  ///
+  /// The first [startNetworking] attempt can fail because the app was launched
+  /// while Wi-Fi was off, which leaves nothing discovering once the radio comes
+  /// back. Safe to call repeatedly: it only acts while the user has consented,
+  /// the master switch is on and the engine is stopped.
+  Future<void> ensureNetworkingStarted() async {
+    if (core.routingEngine.isRunning) return;
+    try {
+      await startNetworking();
+    } catch (_) {
+      // The radio can still be mid-transition; a later Wi-Fi check retries.
     }
   }
 
@@ -175,7 +190,7 @@ class AppServices extends ChangeNotifier {
     if (consentAccepted &&
         networkingEnabled &&
         core.identityHolder.hasIdentity) {
-      await startNetworking();
+      await ensureNetworkingStarted();
     }
   }
 
