@@ -182,10 +182,13 @@ class RoutingEngine {
   /// Retries dialing known peers that are not connected. A one-shot discovery
   /// event is not enough: a dial can fail (the peer was not listening yet, the
   /// group formed before both sides were ready) and without a retry the two
-  /// devices would stay silently unconnected for the rest of the session.
+  /// devices would stay silently unconnected for the rest of the session. Keep
+  /// the interval short so a peer that was discovered a moment too early is not
+  /// stuck unconnected for long; concurrent dials to one handle are already
+  /// guarded, so this cannot pile up.
   void _startReconcile() {
     _reconcileTimer ??= Timer.periodic(
-      const Duration(seconds: 15),
+      const Duration(seconds: 8),
       (_) => _reconcile(),
     );
   }

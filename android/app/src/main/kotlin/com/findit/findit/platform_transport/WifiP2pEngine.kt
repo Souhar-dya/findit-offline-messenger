@@ -624,7 +624,11 @@ class WifiP2pEngine(
 
     private fun startRediscovery() {
         mainHandler.removeCallbacks(rediscover)
-        mainHandler.postDelayed(rediscover, REDISCOVER_INTERVAL_MS)
+        // Fire twice soon after start: the first discoverServices can be
+        // rejected/ignored while the stack settles; a tiny follow-up usually
+        // catches peers that advertise in that window.
+        mainHandler.postDelayed(rediscover, PRIME_DISCOVERY_DELAY_MS)
+        mainHandler.postDelayed(rediscover, PRIME_DISCOVERY_DELAY_MS2)
     }
 
     private fun stopRediscovery() {
@@ -637,10 +641,30 @@ class WifiP2pEngine(
         const val SERVICE_TYPE = "_presence._tcp"
         const val TAG = "FindIt/Transport"
 
-        /** Android stops Wi-Fi Direct discovery after a while, so re-issue it. */
-        const val REDISCOVER_INTERVAL_MS = 30_000L
+        /**
+         * Re-issue service discovery this often.
+         *
+         * Android's Wi-Fi Direct find is a one-shot scan with no "services
+         * changed" callback, so a peer that advertises just after a scan ends is
+         * invisible until the next one. A rejected call (the scan is still
+         * running) is harmless, so a short interval just restarts the scan the
+         * moment it lapses and bounds how long a newly-arrived peer stays hidden.
+         */
+        const val REDISCOVER_INTERVAL_MS = 5_000L
+
+        /**
+         * First re-issue, a moment after start.
+         *
+         * The very first `discoverServices` after start is sometimes ignored (the
+         * Wi-Fi Direct stack is still settling, or a leftover group was just torn
+         * down), and then nothing scans until the first periodic tick — which is
+         * what made an app that had just launched sit on "Searching…" for half a
+         * minute. Priming shortly after start removes that wait.
+         */
+        const val PRIME_DISCOVERY_DELAY_MS = 800L
+        const val PRIME_DISCOVERY_DELAY_MS2 = 1_400L
 
         /** How long to wait for a requested Wi-Fi Direct group to form. */
-        const val CONNECT_TIMEOUT_MS = 20_000L
+        const val CONNECT_TIMEOUT_MS = 15_000L
     }
 }
