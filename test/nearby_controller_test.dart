@@ -138,6 +138,7 @@ Future<_Harness> _harness() async {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('NearbyController', () {
     test('reports Wi-Fi off with the actionable message', () async {
       final harness = await _harness();

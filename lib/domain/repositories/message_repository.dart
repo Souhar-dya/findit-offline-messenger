@@ -45,5 +45,12 @@ abstract class MessageRepository {
   /// Returns the number of messages expired.
   Future<int> expireMessages(int nowMs, {required int tombstoneExpiresAtMs});
 
+  /// Physically deletes disappearing messages past their shared retention
+  /// deadline and tombstones their ids against stale redelivery.
+  Future<int> deleteDisappearingMessages(
+    int nowMs, {
+    required int tombstoneExpiresAtMs,
+  });
+
   Future<void> delete(String id);
 }

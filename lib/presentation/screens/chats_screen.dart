@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../controllers/chats_controller.dart';
 import '../widgets/common.dart';
+import '../../domain/entities/conversation_summary.dart';
 import 'conversation_screen.dart';
 
 /// The Chats tab: conversations ordered by most recent message.
@@ -32,75 +33,134 @@ class ChatsScreen extends StatelessWidget {
     }
     return RefreshIndicator(
       onRefresh: controller.refresh,
-      child: ListView.separated(
-        itemCount: controller.conversations.length,
-        separatorBuilder: (_, _) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final conversation = controller.conversations[index];
-          return ListTile(
-            leading: CircleAvatar(
-              child: Text(_initial(conversation.displayName)),
+      child: ListView(
+        children: [
+          if (controller.friends.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text('Friends', style: TextStyle(fontWeight: FontWeight.w600)),
             ),
-            title: Row(
-              children: [
-                Expanded(child: Text(conversation.displayName)),
-                if (!conversation.isFriend)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 6),
-                    child: Icon(
-                      Icons.help_outline,
-                      size: 14,
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-                  ),
-              ],
-            ),
-            subtitle: Text(
-              conversation.lastMessagePreview,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  formatTimestamp(conversation.lastMessageAtMs),
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-                if (conversation.unreadCount > 0)
-                  Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${conversation.unreadCount}',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontSize: 11,
+            SizedBox(
+              height: 92,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: controller.friends.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final friend = controller.friends[index];
+                  return SizedBox(
+                    width: 72,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _openConversation(
+                        context,
+                        peerId: friend.peerId,
+                        name: friend.displayName,
+                      ),
+                      child: Column(
+                        children: [
+                          CircleAvatar(child: Text(_initial(friend.displayName))),
+                          const SizedBox(height: 4),
+                          Text(
+                            friend.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-              ],
+                  );
+                },
+              ),
             ),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => ConversationScreen(
-                    peerId: conversation.peerId,
-                    title: conversation.displayName,
+            const Divider(height: 16),
+          ],
+          if (controller.conversations.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 28, 16, 16),
+              child: Text('Choose a friend above to start a conversation.'),
+            )
+          else
+            for (final conversation in controller.conversations)
+              _conversationTile(context, conversation),
+        ],
+      ),
+    );
+  }
+
+  Widget _conversationTile(
+    BuildContext context,
+    ConversationSummary conversation,
+  ) => Column(
+    children: [
+      ListTile(
+        leading: CircleAvatar(child: Text(_initial(conversation.displayName))),
+        title: Row(
+          children: [
+            Expanded(child: Text(conversation.displayName)),
+            if (!conversation.isFriend)
+              Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: Icon(
+                  Icons.help_outline,
+                  size: 14,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+          ],
+        ),
+        subtitle: Text(
+          conversation.lastMessagePreview,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              formatTimestamp(conversation.lastMessageAtMs),
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+            if (conversation.unreadCount > 0)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${conversation.unreadCount}',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontSize: 11,
                   ),
                 ),
-              );
-            },
-          );
-        },
+              ),
+          ],
+        ),
+        onTap: () => _openConversation(
+          context,
+          peerId: conversation.peerId,
+          name: conversation.displayName,
+        ),
+      ),
+      const Divider(height: 1),
+    ],
+  );
+
+  void _openConversation(
+    BuildContext context, {
+    required String peerId,
+    required String name,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ConversationScreen(peerId: peerId, title: name),
       ),
     );
   }

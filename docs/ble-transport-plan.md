@@ -68,9 +68,43 @@ and dials `Socket.connect`).
   More code, but it keeps `PlatformTransport` — which is verified and working —
   **completely untouched**.
 
-**Recommendation: (B).** The seam exists precisely for this. `TransportConnection`
-is already frame-oriented (`bundles`, `summaries`, `handshake`), so nothing about
-BLE needs to pretend to be a socket.
+**Recommendation: (B).** The seam exists precisely for this. The public
+`TransportConnection` API is frame-oriented (`bundles`, `summaries`,
+`handshake`), so BLE does not need to pretend to be a socket. However, the
+current `FrameStream` implementation takes a Dart `Socket` directly; it cannot
+be reused by a GATT connection as-is. Extract a socket-independent framing
+codec/channel or implement equivalent BLE framing and keep the wire format
+compatible before claiming that all transports carry identical frames.
+
+## 3a. Decisions required before native BLE work
+
+The phases below describe the work, but these protocol and lifecycle choices
+need to be settled as part of Phase 1 so the Dart/native contract is testable:
+
+- **GATT roles and arbitration:** define which peer is the GATT central and
+  which is the peripheral when both advertise and scan. Reuse the per-transport
+  rotating handles for deterministic arbitration, and specify recovery when
+  either side's preferred role cannot be established.
+- **GATT characteristics:** specify service UUID and the direction/properties
+  of the data characteristics (for example, writes toward the server and
+  notifications back). A single bidirectional characteristic needs explicit
+  handling for Android's write and notification semantics.
+- **Chunk protocol and flow control:** define frame chunk headers, ordering,
+  acknowledgements, retry/timeout behavior, MTU changes, disconnect during a
+  frame, and limits on queued/in-flight bytes. GATT writes are not a TCP byte
+  stream, and a method-channel event should not carry an unbounded bundle.
+- **Payload policy:** choose how BLE handles large bundles and PNGs. Either
+  transfer them with bounded chunks and backpressure, or document/enforce a
+  size threshold and let routing wait for Wi-Fi Direct. The current acceptance
+  list asks for PNG transfer over either link, so that requirement needs to be
+  reconciled with the low BLE throughput before implementation.
+- **Lifecycle and resource limits:** define behavior for permission revocation,
+  Bluetooth/radio toggles, app backgrounding, reconnect, and the maximum number
+  of simultaneous GATT links. Keep the existing networking consent switch as
+  the master on/off gate.
+- **Testable contract:** spell out how `connectionId`, peer handle, MTU, and
+  frame events are correlated, and how disconnect/lost events release pending
+  Dart futures and native GATT resources.
 
 ## 4. Phase 0 — `MultiTransport` (Dart only, no hardware) — **built**
 
@@ -92,8 +126,10 @@ The safe, fully-testable first step. Nothing about it depends on BLE existing.
   are on at once.
 - `capabilities`: union (so the UI can say "two links").
 
-**Why it is worth doing even before BLE:** it is the place the preference policy
-lives, and today it is a one-child wrapper that keeps the seam exercised.
+**Current scope:** this composition layer is implemented and tested in
+isolation, but production `AppBootstrap` still constructs `PlatformTransport`
+directly. Wiring it into the app is still Phase 3 work; the class is not yet a
+production two-radio setup.
 
 **Tests:** `test/multi_transport_test.dart`, with two fake transports:
 
@@ -113,12 +149,16 @@ lives, and today it is a one-child wrapper that keeps the seam exercised.
   `sendFrame`, `close`;
 - events: `discovered`, `lost`, `accepted`, `frameIn`, `errors`;
 - `connect` answers with a socket-free connection id and the peer's MTU.
+- Define native events and method-channel payload limits alongside the framing
+  and backpressure decisions above; GATT callbacks and Flutter channel delivery
+  must not accumulate unbounded frame data.
 
 **New:** `lib/transport/ble_transport.dart`
 
 - `implements Transport`;
 - `connect()` returns a `BleConnection implements TransportConnection` that
-  carries frames over the event channel, reusing `frame_stream.dart`;
+  carries frames over the event channel, using the socket-independent framing
+  channel extracted in Phase 1 (or an equivalent tested BLE codec);
 - simulated in tests with a fake gateway (same approach as
   `test/platform_transport_test.dart`).
 
@@ -158,8 +198,9 @@ store-carry-forward part.
 - **Unit (Dart):** Phases 0 and 1 with fake gateways — must pass in CI.
 - **JVM:** `BleEngine` chunking / queue logic where it can be isolated.
 - **Hardware:** a manual matrix on the Moto Edge 60 Pro + Samsung SM-G990E
-  (and ideally a third phone): discover, connect, text, PNG, hand-off when the
-  other radio appears.
+  (and ideally a third phone): discover, connect, text, the agreed PNG/size
+  policy, app background/foreground, permission and radio changes, and hand-off
+  when the other radio appears.
 - **Release rule:** the README may only claim BLE once the two-phone test passes.
   Until then it stays "planned".
 

@@ -11,7 +11,13 @@ enum EnvelopeType {
   friendRequest('friend_request'),
   friendAccept('friend_accept'),
   friendConfirm('friend_confirm'),
-  friendDecline('friend_decline');
+  friendDecline('friend_decline'),
+  retentionRequest('retention_request'),
+  retentionResponse('retention_response'),
+  retentionCommit('retention_commit'),
+  retentionCommitAck('retention_commit_ack'),
+  retentionActivate('retention_activate'),
+  retentionActivateAck('retention_activate_ack');
 
   const EnvelopeType(this.wire);
 

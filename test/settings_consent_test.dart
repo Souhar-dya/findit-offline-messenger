@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/harness.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('Consent settings', () {
     test('defaults to no consent and networking off', () async {
       final node = await TestNode.create();

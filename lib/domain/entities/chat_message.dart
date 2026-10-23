@@ -71,6 +71,8 @@ class ChatMessage {
     required this.payloadType,
     required this.createdAtMs,
     required this.expiresAtMs,
+    this.disappears = true,
+    this.retentionExpiresAtMs,
     this.text,
     this.imageBytes,
     this.imageContentHashHex,
@@ -95,6 +97,12 @@ class ChatMessage {
   final MessagePayloadType payloadType;
   final int createdAtMs;
   final int expiresAtMs;
+
+  /// Whether this message is scheduled for local deletion after delivery.
+  final bool disappears;
+
+  /// Shared deletion deadline. Null means the message is retained.
+  final int? retentionExpiresAtMs;
 
   final String? text;
   final Uint8List? imageBytes;
@@ -139,6 +147,8 @@ class ChatMessage {
       payloadType: payloadType,
       createdAtMs: createdAtMs,
       expiresAtMs: expiresAtMs,
+      disappears: disappears,
+      retentionExpiresAtMs: retentionExpiresAtMs,
       text: text,
       imageBytes: imageBytes,
       imageContentHashHex: imageContentHashHex,

@@ -74,12 +74,17 @@ class FriendService {
       StreamController<FriendRequestRecord>.broadcast();
   final StreamController<FriendRecord> _friendshipChanges =
       StreamController<FriendRecord>.broadcast();
+  final StreamController<String> _blockedIdentityChanges =
+      StreamController<String>.broadcast();
 
   /// Incoming requests that await a local decision.
   Stream<FriendRequestRecord> get incomingRequests => _incomingRequests.stream;
 
   /// Any friendship state change (accept/confirm/decline/block).
   Stream<FriendRecord> get friendshipChanges => _friendshipChanges.stream;
+
+  /// Identities blocked locally, so live routing sessions can be closed.
+  Stream<String> get blockedIdentityChanges => _blockedIdentityChanges.stream;
 
   int get _nowMs => _clock.now().millisecondsSinceEpoch;
 
@@ -258,9 +263,23 @@ class FriendService {
   /// any state is touched.
   Future<void> block(String identityId, {required bool blocked}) async {
     await _friends.setBlocked(identityId, blocked: blocked, nowMs: _nowMs);
+    if (blocked && !_blockedIdentityChanges.isClosed) {
+      _blockedIdentityChanges.add(identityId);
+    }
     final friend = await _friends.findFriend(identityId);
     if (friend != null) _friendshipChanges.add(friend);
   }
+
+  /// Whether [identityId] may exchange direct messages and delivery receipts.
+  /// A discovered peer or a previously removed contact is not sufficient; the
+  /// local friendship must still be accepted and the identity must be unblocked.
+  Future<bool> canExchangeMessages(String identityId) async {
+    if (await _friends.isBlocked(identityId)) return false;
+    final friend = await _friends.findFriend(identityId);
+    return friend?.isAccepted ?? false;
+  }
+
+  Future<bool> isBlocked(String identityId) => _friends.isBlocked(identityId);
 
   /// Cancels an outgoing request that is still awaiting a reply.
   ///
@@ -614,6 +633,7 @@ class FriendService {
   Future<void> dispose() async {
     await _incomingRequests.close();
     await _friendshipChanges.close();
+    await _blockedIdentityChanges.close();
   }
 }
 

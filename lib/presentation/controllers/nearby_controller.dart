@@ -70,13 +70,15 @@ class NearbyController extends ChangeNotifier {
     final connectedNames = <String>{
       for (final session in _sessions)
         if (session.displayName != null && session.displayName!.isNotEmpty)
-          session.displayName!,
+          session.displayName!.trim().toLowerCase(),
     };
     return [
       for (final peer in _knownPeers)
         if (!connectedHandles.contains(peer.peerId) &&
             !(peer.displayNameHint != null &&
-                connectedNames.contains(peer.displayNameHint)))
+                connectedNames.contains(
+                  peer.displayNameHint!.trim().toLowerCase(),
+                )))
           peer,
     ];
   }

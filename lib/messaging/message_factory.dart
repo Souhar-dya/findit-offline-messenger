@@ -12,6 +12,8 @@ class MessageFields {
   static const String kind = 'k';
   static const String createdAt = 'iat';
   static const String expiresAt = 'exp';
+  static const String disappears = 'dis';
+  static const String retentionExpiresAt = 'del';
   static const String text = 't';
   static const String image = 'img';
   static const String imageHash = 'h';
@@ -27,6 +29,8 @@ class MessagePayload {
     required this.kind,
     required this.createdAtMs,
     required this.expiresAtMs,
+    required this.disappears,
+    required this.retentionExpiresAtMs,
     this.text,
     this.imageBytes,
     this.imageContentHashHex,
@@ -39,6 +43,8 @@ class MessagePayload {
   final MessagePayloadType kind;
   final int createdAtMs;
   final int expiresAtMs;
+  final bool disappears;
+  final int? retentionExpiresAtMs;
   final String? text;
   final Uint8List? imageBytes;
   final String? imageContentHashHex;
@@ -60,12 +66,19 @@ class MessageFactory {
     required String messageIdHex,
     required int createdAtMs,
     required int expiresAtMs,
+    bool disappears = true,
+    int? retentionExpiresAtMs,
     required String text,
   }) => {
     MessageFields.messageId: messageIdHex,
     MessageFields.kind: MessagePayloadType.text.wire,
     MessageFields.createdAt: createdAtMs,
     MessageFields.expiresAt: expiresAtMs,
+    MessageFields.disappears: disappears,
+    if (disappears)
+      MessageFields.retentionExpiresAt:
+          retentionExpiresAtMs ??
+          createdAtMs + const Duration(hours: 24).inMilliseconds,
     MessageFields.text: text,
   };
 
@@ -73,6 +86,8 @@ class MessageFactory {
     required String messageIdHex,
     required int createdAtMs,
     required int expiresAtMs,
+    bool disappears = true,
+    int? retentionExpiresAtMs,
     required Uint8List bytes,
     required String contentHashHex,
     required int width,
@@ -83,6 +98,11 @@ class MessageFactory {
     MessageFields.kind: MessagePayloadType.png.wire,
     MessageFields.createdAt: createdAtMs,
     MessageFields.expiresAt: expiresAtMs,
+    MessageFields.disappears: disappears,
+    if (disappears)
+      MessageFields.retentionExpiresAt:
+          retentionExpiresAtMs ??
+          createdAtMs + const Duration(hours: 24).inMilliseconds,
     MessageFields.image: bytes,
     MessageFields.imageHash: contentHashHex,
     MessageFields.imageWidth: width,
@@ -100,8 +120,27 @@ class MessageFactory {
       );
       final createdAt = payload[MessageFields.createdAt] as int;
       final expiresAt = payload[MessageFields.expiresAt] as int;
+      final legacyPolicy = payload[MessageFields.disappears] == null;
+      final disappears =
+          payload[MessageFields.disappears] as bool? ?? true;
+      final retentionExpiresAt =
+          payload[MessageFields.retentionExpiresAt] as int? ??
+          (legacyPolicy ? expiresAt : null);
       if (id.isEmpty || expiresAt <= createdAt) {
         throw const ProtocolException('Message has invalid timestamps');
+      }
+      if ((disappears && retentionExpiresAt == null) ||
+          (!disappears && retentionExpiresAt != null) ||
+          (retentionExpiresAt != null &&
+              (retentionExpiresAt <= createdAt ||
+                  retentionExpiresAt >
+                      createdAt + const Duration(hours: 24).inMilliseconds))) {
+        throw const ProtocolException('Message has invalid retention policy');
+      }
+      if (!legacyPolicy && disappears &&
+          retentionExpiresAt !=
+              createdAt + const Duration(hours: 24).inMilliseconds) {
+        throw const ProtocolException('Message retention must be 24 hours');
       }
       if (kind == MessagePayloadType.text) {
         final text = payload[MessageFields.text] as String?;
@@ -113,6 +152,8 @@ class MessageFactory {
           kind: kind,
           createdAtMs: createdAt,
           expiresAtMs: expiresAt,
+          disappears: disappears,
+          retentionExpiresAtMs: retentionExpiresAt,
           text: text,
         );
       }
@@ -131,6 +172,8 @@ class MessageFactory {
         kind: kind,
         createdAtMs: createdAt,
         expiresAtMs: expiresAt,
+        disappears: disappears,
+        retentionExpiresAtMs: retentionExpiresAt,
         imageBytes: image is Uint8List ? image : Uint8List.fromList(image),
         imageContentHashHex: hash,
         imageWidth: width,

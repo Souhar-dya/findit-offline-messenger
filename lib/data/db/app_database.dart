@@ -14,7 +14,7 @@ class AppDatabase {
       _path = path;
 
   /// Current schema version. Increment and add a migration when changing it.
-  static const int schemaVersion = 2;
+  static const int schemaVersion = 3;
 
   final DatabaseFactory _factory;
   final String _path;
@@ -112,6 +112,7 @@ class AppDatabase {
     final statements = <String>[];
     if (from < 1) statements.addAll(_schemaV1);
     if (from < 2) statements.addAll(_schemaV2);
+    if (from < 3) statements.addAll(_schemaV3);
     return statements;
   }
 
@@ -279,5 +280,15 @@ class AppDatabase {
       value TEXT NOT NULL
     )
     ''',
+  ];
+
+  /// v3: per-message disappearing retention deadline.
+  static const List<String> _schemaV3 = [
+    'ALTER TABLE messages ADD COLUMN disappears INTEGER NOT NULL DEFAULT 1',
+    'ALTER TABLE messages ADD COLUMN retention_expires_at_ms INTEGER',
+    // Existing messages predate the explicit retention column. Preserve their
+    // former transport expiry as their local disappearance deadline.
+    'UPDATE messages SET retention_expires_at_ms = expires_at_ms WHERE disappears = 1',
+    'CREATE INDEX idx_messages_retention ON messages(retention_expires_at_ms)',
   ];
 }

@@ -15,9 +15,8 @@ import 'profile_screen.dart';
 
 /// The authenticated shell with the four primary tabs.
 ///
-/// It also watches the Wi-Fi radio: while networking is on but Wi-Fi is off the
-/// app cannot reach anyone, so a full-screen prompt asks the user to turn Wi-Fi
-/// back on instead of silently doing nothing.
+/// It watches Wi-Fi and hotspot state and blocks the app while its required
+/// Wi-Fi Direct radio conditions are not met.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -29,9 +28,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
   Timer? _wifiTimer;
   bool _wifiOff = false;
-  bool _wifiPromptDismissed = false;
   bool _hotspotOn = false;
-  bool _hotspotPromptDismissed = false;
 
   static const List<String> _titles = ['Chats', 'Friends', 'Nearby', 'Profile'];
 
@@ -89,25 +86,20 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       return;
     }
     final enabled = await services.isWifiEnabled();
+    final hotspot = await services.isHotspotEnabled();
     if (!mounted) return;
+    if (hotspot != _hotspotOn) setState(() => _hotspotOn = hotspot);
     if (!enabled) {
       if (!_wifiOff) setState(() => _wifiOff = true);
       return;
     }
-    if (_wifiOff || _wifiPromptDismissed) {
+    if (_wifiOff) {
       setState(() {
         _wifiOff = false;
-        _wifiPromptDismissed = false;
       });
     }
     // A running hotspot (SoftAP) usually blocks Wi-Fi Direct, so warn the user
     // rather than silently failing to find anyone.
-    final hotspot = await services.isHotspotEnabled();
-    if (!mounted) return;
-    if (hotspot != _hotspotOn) setState(() => _hotspotOn = hotspot);
-    if (!hotspot && _hotspotPromptDismissed) {
-      setState(() => _hotspotPromptDismissed = false);
-    }
     // A start that raced Wi-Fi off (the app was opened with the radio off) has
     // to be retried now that the radio is back, or nothing is ever discovered.
     await services.ensureNetworkingStarted();
@@ -115,16 +107,13 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   Future<void> _enableWifi() async {
     final services = context.read<AppServices>();
-    await services.requestWifiEnable();
+    if (_hotspotOn) {
+      await services.openHotspotSettings();
+    } else {
+      await services.requestWifiEnable();
+    }
     await _checkWifi();
   }
-
-  Future<void> _openHotspotSettings() async {
-    await context.read<AppServices>().openHotspotSettings();
-    await _checkWifi();
-  }
-
-  void _dismissWifiPrompt() => setState(() => _wifiPromptDismissed = true);
 
   @override
   Widget build(BuildContext context) {
@@ -168,32 +157,30 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             ],
           ),
         ),
-        if (_wifiOff && !_wifiPromptDismissed)
+        if (_wifiOff)
           Positioned.fill(
             child: _WifiPrompt(
               onEnable: _enableWifi,
-              onLater: _dismissWifiPrompt,
+              hotspotOn: _hotspotOn,
             ),
           ),
-        if (!_wifiOff && _hotspotOn && !_hotspotPromptDismissed)
+        if (!_wifiOff && _hotspotOn)
           Positioned.fill(
-            child: _HotspotPrompt(
-              onOpenSettings: _openHotspotSettings,
-              onLater: () => setState(() => _hotspotPromptDismissed = true),
-            ),
+            child: _HotspotPrompt(onOpenSettings: () async {
+              await context.read<AppServices>().openHotspotSettings();
+              await _checkWifi();
+            }),
           ),
       ],
     );
   }
 }
 
-/// A dismissible overlay warning that the phone's hotspot is on, which usually
-/// stops Wi-Fi Direct from finding anyone.
+/// A blocking overlay requiring the hotspot to be turned off before continuing.
 class _HotspotPrompt extends StatelessWidget {
-  const _HotspotPrompt({required this.onOpenSettings, required this.onLater});
+  const _HotspotPrompt({required this.onOpenSettings});
 
   final Future<void> Function() onOpenSettings;
-  final VoidCallback onLater;
 
   @override
   Widget build(BuildContext context) {
@@ -223,26 +210,20 @@ class _HotspotPrompt extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Your phone is sharing its connection. On most phones that '
-                    'stops FindIt from finding people nearby. Turn the hotspot '
-                    'off and your devices connect by themselves.',
+                    'Your phone is sharing its connection. The hotspot '
+                    'prevents FindIt from using Wi-Fi Direct, so you cannot '
+                    'use the app until it is turned off.',
                     style: theme.textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: onLater,
-                        child: const Text('Not now'),
-                      ),
-                      const Spacer(),
-                      FilledButton.icon(
-                        onPressed: onOpenSettings,
-                        icon: const Icon(Icons.settings),
-                        label: const Text('Open settings'),
-                      ),
-                    ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: onOpenSettings,
+                      icon: const Icon(Icons.settings),
+                      label: const Text('Turn off hotspot'),
+                    ),
                   ),
                 ],
               ),
@@ -254,12 +235,12 @@ class _HotspotPrompt extends StatelessWidget {
   }
 }
 
-/// A blocking-but-escapable overlay asking the user to turn Wi-Fi on.
+/// A blocking overlay that keeps the app gated until Wi-Fi is available.
 class _WifiPrompt extends StatelessWidget {
-  const _WifiPrompt({required this.onEnable, required this.onLater});
+  const _WifiPrompt({required this.onEnable, required this.hotspotOn});
 
   final Future<void> Function() onEnable;
-  final VoidCallback onLater;
+  final bool hotspotOn;
 
   @override
   Widget build(BuildContext context) {
@@ -283,32 +264,39 @@ class _WifiPrompt extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Turn Wi-Fi on',
+                    hotspotOn
+                        ? 'Turn off your hotspot'
+                        : 'Turn Wi-Fi on',
                     style: theme.textTheme.headlineSmall,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'FindIt talks to nearby devices directly over Wi-Fi '
-                    '(Wi-Fi Direct). With Wi-Fi off it cannot find or message '
-                    'anyone. Turn it on and your devices connect by themselves.',
+                    hotspotOn
+                        ? 'FindIt talks to nearby devices directly over Wi-Fi '
+                              '(Wi-Fi Direct). The hotspot is active and Wi-Fi '
+                              'is unavailable for nearby connections. Turn off '
+                              'the hotspot, then enable Wi-Fi to continue.'
+                        : 'FindIt talks to nearby devices directly over Wi-Fi '
+                              '(Wi-Fi Direct). With Wi-Fi off and no active '
+                              'hotspot, it cannot find or message anyone. '
+                              'Enable Wi-Fi to continue; internet access is '
+                              'not required.',
                     style: theme.textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: onLater,
-                        child: const Text('Not now'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: onEnable,
+                      icon: const Icon(Icons.settings),
+                      label: Text(
+                        hotspotOn
+                            ? 'Open hotspot settings'
+                            : 'Open Wi-Fi settings',
                       ),
-                      const Spacer(),
-                      FilledButton.icon(
-                        onPressed: onEnable,
-                        icon: const Icon(Icons.wifi),
-                        label: const Text('Turn on Wi-Fi'),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),

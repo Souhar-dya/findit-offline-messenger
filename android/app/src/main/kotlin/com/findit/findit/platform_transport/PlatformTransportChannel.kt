@@ -146,7 +146,9 @@ class PlatformTransportChannel private constructor(
                 val intent = Intent(Settings.Panel.ACTION_WIFI)
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 appContext.startActivity(intent)
-                result.success(mapOf("enabled" to true))
+                val wifiManager =
+                    appContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+                result.success(mapOf("enabled" to wifiManager.isWifiEnabled))
             }
 
             TransportContract.METHOD_CHECK_PERMISSIONS -> {

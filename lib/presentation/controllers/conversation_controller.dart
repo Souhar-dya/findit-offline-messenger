@@ -22,24 +22,44 @@ class ConversationController extends ChangeNotifier {
       }
     });
     _changes = _services.core.messageChanges.stream.listen((_) => refresh());
+    _retentionChanges = _services.core.retentionService.changes.listen((id) {
+      if (id == peerId) refresh();
+    });
   }
 
   final AppServices _services;
   final String peerId;
   StreamSubscription<Object?>? _incoming;
   StreamSubscription<Object?>? _changes;
+  StreamSubscription<String>? _retentionChanges;
 
   List<ChatMessage> _messages = const [];
   FriendRecord? _friend;
   IdentityRecord? _peerRecord;
   bool _loading = false;
   bool _sending = false;
+  bool _disappearingMessagesEnabled = true;
+  bool _updatingDisappearingPreference = false;
+  String? _incomingRetentionRequestId;
+  bool? _incomingRetentionEnabled;
+  bool _incomingRetentionAccepted = false;
+  String? _outgoingRetentionRequestId;
+  bool _outgoingRetentionCommitting = false;
   String? _error;
 
   List<ChatMessage> get messages => _messages;
   FriendRecord? get friend => _friend;
   bool get loading => _loading;
   bool get sending => _sending;
+  bool get disappearingMessagesEnabled => _disappearingMessagesEnabled;
+  bool get updatingDisappearingPreference => _updatingDisappearingPreference;
+  String? get incomingRetentionRequestId => _incomingRetentionRequestId;
+  bool? get incomingRetentionEnabled => _incomingRetentionEnabled;
+  bool get incomingRetentionAccepted => _incomingRetentionAccepted;
+  String? get outgoingRetentionRequestId => _outgoingRetentionRequestId;
+  bool get outgoingRetentionCommitting => _outgoingRetentionCommitting;
+  bool get retentionChangeApplying =>
+      _outgoingRetentionCommitting || _incomingRetentionAccepted;
   String? get error => _error;
 
   String get displayName =>
@@ -54,6 +74,16 @@ class ConversationController extends ChangeNotifier {
       _messages = await _services.core.messages.conversation(peerId);
       _friend = await _services.core.friends.findFriend(peerId);
       _peerRecord = (await _services.core.identities.find(peerId))?.record;
+      _disappearingMessagesEnabled = await _services.core.settings
+          .disappearingMessagesEnabledFor(peerId);
+      final retentionState = await _services.core.retentionService.stateFor(
+        peerId,
+      );
+      _incomingRetentionRequestId = retentionState.incomingRequestId;
+      _incomingRetentionEnabled = retentionState.incomingEnabled;
+      _incomingRetentionAccepted = retentionState.incomingAccepted;
+      _outgoingRetentionRequestId = retentionState.outgoingRequestId;
+      _outgoingRetentionCommitting = retentionState.outgoingCommitSent;
       _error = null;
     } catch (error) {
       _error = 'Could not load this conversation: $error';
@@ -71,6 +101,51 @@ class ConversationController extends ChangeNotifier {
       peerId,
       _services.core.clock.now().millisecondsSinceEpoch,
     );
+  }
+
+  Future<void> setDisappearingMessagesEnabled(bool enabled) async {
+    if (_updatingDisappearingPreference ||
+        enabled == _disappearingMessagesEnabled) {
+      return;
+    }
+    _updatingDisappearingPreference = true;
+    notifyListeners();
+    try {
+      final peer = await _recipient();
+      if (peer == null) return;
+      await _services.core.retentionService.requestChange(
+        peer: peer,
+        enabled: enabled,
+      );
+      _error = null;
+    } catch (error) {
+      _error = 'Could not update message retention: $error';
+    } finally {
+      _updatingDisappearingPreference = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> respondToRetentionRequest({required bool accept}) async {
+    final requestId = _incomingRetentionRequestId;
+    final peer = await _recipient();
+    if (requestId == null || peer == null) return;
+    _updatingDisappearingPreference = true;
+    notifyListeners();
+    try {
+      await _services.core.retentionService.respondToRequest(
+        peer: peer,
+        requestId: requestId,
+        accept: accept,
+      );
+      _error = null;
+      await load();
+    } on AppException catch (error) {
+      _error = error.message;
+    } finally {
+      _updatingDisappearingPreference = false;
+      notifyListeners();
+    }
   }
 
   Future<bool> sendText(String text) async {
@@ -133,6 +208,7 @@ class ConversationController extends ChangeNotifier {
   void dispose() {
     _incoming?.cancel();
     _changes?.cancel();
+    _retentionChanges?.cancel();
     super.dispose();
   }
 }

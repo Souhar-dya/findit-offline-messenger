@@ -18,6 +18,7 @@ import '../friends/friend_service.dart';
 import '../messaging/bundle_outbox.dart';
 import '../messaging/message_service.dart';
 import '../messaging/receipt_service.dart';
+import '../messaging/retention_service.dart';
 import '../messaging/signed_bundle.dart';
 import '../transport/transport.dart';
 
@@ -50,6 +51,7 @@ class RoutingEngine {
     required MessageService messages,
     required FriendService friends,
     required ReceiptService receipts,
+    required RetentionService retention,
     required IdentityRepository identities,
     required IdentityHolder identityHolder,
     required SettingsService settings,
@@ -63,6 +65,7 @@ class RoutingEngine {
        _messages = messages,
        _friends = friends,
        _receipts = receipts,
+       _retention = retention,
        _identities = identities,
        _identityHolder = identityHolder,
        _settings = settings,
@@ -76,6 +79,7 @@ class RoutingEngine {
   final MessageService _messages;
   final FriendService _friends;
   final ReceiptService _receipts;
+  final RetentionService _retention;
   final IdentityRepository _identities;
   final IdentityHolder _identityHolder;
   final SettingsService _settings;
@@ -100,6 +104,8 @@ class RoutingEngine {
       StreamController<List<PeerSessionInfo>>.broadcast();
 
   StreamSubscription<TransportPeer>? _discoverySub;
+  StreamSubscription<String>? _lostSub;
+  StreamSubscription<String>? _blockedSub;
   StreamSubscription<TransportConnection>? _incomingSub;
   StreamSubscription<Object>? _errorSub;
   StreamSubscription<StoredBundle>? _enqueueSub;
@@ -133,6 +139,8 @@ class RoutingEngine {
       discoverable: true,
     );
     _discoverySub = _transport.discoveredPeers.listen(_onPeerDiscovered);
+    _lostSub = _transport.lostPeers.listen(_onPeerLost);
+    _blockedSub = _friends.blockedIdentityChanges.listen(_onIdentityBlocked);
     _incomingSub = _transport.incomingConnections.listen(_accept);
     _errorSub = _transport.errors.listen((_) {});
     _enqueueSub = _outbox.enqueued.listen((_) => flush());
@@ -170,10 +178,14 @@ class RoutingEngine {
 
   Future<void> _cancelSubscriptions() async {
     await _discoverySub?.cancel();
+    await _lostSub?.cancel();
+    await _blockedSub?.cancel();
     await _incomingSub?.cancel();
     await _errorSub?.cancel();
     await _enqueueSub?.cancel();
     _discoverySub = null;
+    _lostSub = null;
+    _blockedSub = null;
     _incomingSub = null;
     _errorSub = null;
     _enqueueSub = null;
@@ -222,6 +234,25 @@ class RoutingEngine {
     if (!autoConnect) return;
     if (!_shouldInitiate(peer.peerId)) return;
     unawaited(connectTo(peer.peerId));
+  }
+
+  void _onPeerLost(String transportPeerId) {
+    _connecting.remove(transportPeerId);
+    final session = _sessions.remove(transportPeerId);
+    if (session == null) return;
+    unawaited(session.dispose());
+    _emitPeers();
+  }
+
+  void _onIdentityBlocked(String identityId) {
+    final blockedSessions = _sessions.values
+        .where((session) => session.identityId == identityId)
+        .toList();
+    for (final session in blockedSessions) {
+      _sessions.remove(session.connection.peerId);
+      unawaited(session.dispose());
+    }
+    if (blockedSessions.isNotEmpty) _emitPeers();
   }
 
   /// Deterministic tie-break so two peers never both initiate a connection to
@@ -277,6 +308,9 @@ class RoutingEngine {
           'Peer presented an invalid identity record',
         );
       }
+      if (await _friends.isBlocked(result.identity.identityId)) {
+        throw const StateTransitionException('This peer is blocked');
+      }
       session.identityId = result.identity.identityId;
       session.displayName = result.identity.displayName;
       // One peer, one session. The same device can be reached over two sockets:
@@ -287,10 +321,12 @@ class RoutingEngine {
       // already had and drop the spare: "Connected" must never list a peer twice.
       final existing = _otherSessionWithIdentity(session, result.identity.identityId);
       if (existing != null) {
-        _sessions.remove(connection.peerId);
-        await session.dispose();
-        _emitPeers();
-        return;
+        // A restarted app advertises a fresh transport handle while an old TCP
+        // session can remain half-open. Prefer the session that just completed
+        // a valid handshake, and close the old one so the same identity cannot
+        // stay represented by two transport connections.
+        _sessions.remove(existing.connection.peerId);
+        await existing.dispose();
       }
       await _rememberPeer(result.identity);
       await connection.sendSummary(await _buildSummary());
@@ -419,6 +455,11 @@ class RoutingEngine {
       // Radio silent: while networking is off this device accepts nothing — not
       // even messages addressed to it.
       if (!_settings.networkingEnabled) return;
+      final connectedIdentity = session.identityId;
+      if (connectedIdentity != null &&
+          await _friends.isBlocked(connectedIdentity)) {
+        return;
+      }
 
       final Envelope envelope;
       try {
@@ -434,9 +475,20 @@ class RoutingEngine {
 
       if (envelope.recipientId == me.identityId) {
         // Addressed to us: decrypt + dispatch. It is not stored for relaying.
-        try {
-          final opened = await _codec.open(recipient: me, envelope: envelope);
-          await _dispatch(opened);
+      try {
+        final opened = await _codec.open(recipient: me, envelope: envelope);
+        if ((opened.type == EnvelopeType.message ||
+                opened.type == EnvelopeType.deliveryReceipt ||
+                opened.type == EnvelopeType.retentionRequest ||
+                opened.type == EnvelopeType.retentionResponse ||
+                opened.type == EnvelopeType.retentionCommit ||
+                opened.type == EnvelopeType.retentionCommitAck ||
+                opened.type == EnvelopeType.retentionActivate ||
+                opened.type == EnvelopeType.retentionActivateAck) &&
+            !await _friends.canExchangeMessages(opened.sender.identityId)) {
+          return;
+        }
+        await _dispatch(opened);
         } on ExpiredException {
           return;
         } on AppException {
@@ -489,6 +541,13 @@ class RoutingEngine {
       case EnvelopeType.friendConfirm:
       case EnvelopeType.friendDecline:
         await _friends.handleIncoming(opened);
+      case EnvelopeType.retentionRequest:
+      case EnvelopeType.retentionResponse:
+      case EnvelopeType.retentionCommit:
+      case EnvelopeType.retentionCommitAck:
+      case EnvelopeType.retentionActivate:
+      case EnvelopeType.retentionActivateAck:
+        await _retention.handleIncoming(opened);
     }
   }
 
@@ -533,7 +592,7 @@ class RoutingEngine {
   }
 
   /// Another live session that has already proven the same permanent identity as
-  /// [session]. Used to collapse two sockets that turn out to be one person.
+  /// [session]. Used to replace stale sockets after a peer restarts.
   _Session? _otherSessionWithIdentity(_Session session, String identityId) {
     for (final other in _sessions.values) {
       if (identical(other, session)) continue;

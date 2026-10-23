@@ -222,6 +222,15 @@ class SqfliteFriendRepository implements FriendRepository {
           where: 'identity_id = ?',
           whereArgs: [identityId],
         );
+        // Blocking changes the visible friend status. Restore an accepted
+        // status on unblock so the contact is usable again; non-contact block
+        // entries have no friends row and are unaffected.
+        await txn.update(
+          'friends',
+          {'status': FriendStatus.accepted.wire},
+          where: 'peer_id = ? AND status = ?',
+          whereArgs: [identityId, FriendStatus.blocked.wire],
+        );
       }
     });
   }

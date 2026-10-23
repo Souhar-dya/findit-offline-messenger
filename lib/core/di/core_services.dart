@@ -22,6 +22,7 @@ import '../../messaging/bundle_outbox.dart';
 import '../../messaging/message_changes.dart';
 import '../../messaging/message_service.dart';
 import '../../messaging/receipt_service.dart';
+import '../../messaging/retention_service.dart';
 import '../../messaging/signed_bundle.dart';
 import '../../routing/routing_engine.dart';
 import '../../transport/transport.dart';
@@ -53,6 +54,7 @@ class CoreServices {
     required this.messageChanges,
     required this.friendService,
     required this.receiptService,
+    required this.retentionService,
     required this.messageService,
     required this.routingEngine,
     required this.maintenance,
@@ -83,6 +85,7 @@ class CoreServices {
 
   final FriendService friendService;
   final ReceiptService receiptService;
+  final RetentionService retentionService;
   final MessageService messageService;
 
   final RoutingEngine routingEngine;
@@ -141,6 +144,16 @@ class CoreServices {
       clock: clock,
       config: config,
       changes: messageChanges,
+      settings: settings,
+    );
+    final retentionService = RetentionService(
+      settings: settings,
+      outbox: outbox,
+      identities: identities,
+      friends: friendService,
+      identityHolder: identityHolder,
+      clock: clock,
+      config: config,
     );
     final messageService = MessageService(
       messages: messages,
@@ -151,6 +164,7 @@ class CoreServices {
       clock: clock,
       config: config,
       changes: messageChanges,
+      settings: settings,
     );
     final routingEngine = RoutingEngine(
       transport: transport,
@@ -160,6 +174,7 @@ class CoreServices {
       messages: messageService,
       friends: friendService,
       receipts: receiptService,
+      retention: retentionService,
       identities: identities,
       identityHolder: identityHolder,
       settings: settings,
@@ -174,6 +189,7 @@ class CoreServices {
       friends: friendService,
       messageService: messageService,
       receiptService: receiptService,
+      retentionService: retentionService,
       changes: messageChanges,
       clock: clock,
       config: config,
@@ -218,6 +234,7 @@ class CoreServices {
           verifiedAtMs: now,
         ),
       );
+      await retentionService.retryPendingChanges();
     }
     return identity;
   }
@@ -227,6 +244,7 @@ class CoreServices {
     await routingEngine.dispose();
     await transport.dispose();
     await messageService.dispose();
+    await retentionService.dispose();
     await friendService.dispose();
     await outbox.dispose();
     await messageChanges.dispose();

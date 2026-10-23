@@ -228,8 +228,9 @@ class SqfliteMessageRepository implements MessageRepository {
       final expired = await txn.query(
         'messages',
         columns: ['message_id', 'bundle_id'],
-        where: 'expires_at_ms <= ? AND status NOT IN (?, ?)',
+        where: 'direction = ? AND expires_at_ms <= ? AND status NOT IN (?, ?)',
         whereArgs: [
+          MessageDirection.outgoing.name,
           nowMs,
           MessageStatus.expired.wire,
           MessageStatus.delivered.wire,
@@ -249,19 +250,90 @@ class SqfliteMessageRepository implements MessageRepository {
       }
       final count = await txn.update(
         'messages',
-        {
-          'status': MessageStatus.expired.wire,
-          'image_bytes': null,
-          'text_content': null,
-        },
-        where: 'expires_at_ms <= ? AND status NOT IN (?, ?)',
+        {'status': MessageStatus.expired.wire},
+        where: 'direction = ? AND expires_at_ms <= ? AND status NOT IN (?, ?)',
         whereArgs: [
+          MessageDirection.outgoing.name,
           nowMs,
           MessageStatus.expired.wire,
           MessageStatus.delivered.wire,
         ],
       );
       return count;
+    });
+  }
+
+  @override
+  Future<int> deleteDisappearingMessages(
+    int nowMs, {
+    required int tombstoneExpiresAtMs,
+  }) async {
+    final db = await _database.database;
+    return db.transaction((txn) async {
+      final expired = await txn.query(
+        'messages',
+        columns: ['message_id', 'bundle_id', 'conversation_id'],
+        where: 'disappears = 1 AND retention_expires_at_ms <= ?',
+        whereArgs: [nowMs],
+      );
+      if (expired.isEmpty) return 0;
+
+      final conversations = <String>{};
+      for (final row in expired) {
+        final bundleId = row['bundle_id'] as String?;
+        if (bundleId != null) {
+          await txn.insert('message_tombstones', {
+            'bundle_id': bundleId,
+            'reason': 'disappeared',
+            'created_at_ms': nowMs,
+            'expires_at_ms': tombstoneExpiresAtMs,
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+        }
+        conversations.add(row['conversation_id'] as String);
+        await txn.delete(
+          'messages',
+          where: 'message_id = ?',
+          whereArgs: [row['message_id']],
+        );
+      }
+
+      // Keep the chat list preview in sync with the messages that remain.
+      for (final peerId in conversations) {
+        final lastRows = await txn.query(
+          'messages',
+          where: 'conversation_id = ?',
+          whereArgs: [peerId],
+          orderBy: 'COALESCE(received_at_ms, created_at_ms) DESC, created_at_ms DESC',
+          limit: 1,
+        );
+        if (lastRows.isEmpty) {
+          await txn.delete(
+            'conversations',
+            where: 'peer_id = ?',
+            whereArgs: [peerId],
+          );
+          continue;
+        }
+        final last = lastRows.first;
+        final preview = last['payload_type'] == MessagePayloadType.png.wire
+            ? 'PNG image'
+            : ((last['text_content'] as String?) ?? '');
+        final timestamp =
+            (last['received_at_ms'] as int?) ??
+            (last['created_at_ms'] as int);
+        await txn.update(
+          'conversations',
+          {
+            'last_message_id': last['message_id'],
+            'last_message_at_ms': timestamp,
+            'last_preview': preview,
+            'updated_at_ms': timestamp,
+          },
+          where: 'peer_id = ?',
+          whereArgs: [peerId],
+        );
+      }
+      return expired.length;
     });
   }
 
@@ -310,6 +382,8 @@ class SqfliteMessageRepository implements MessageRepository {
     'payload_type': message.payloadType.wire,
     'created_at_ms': message.createdAtMs,
     'expires_at_ms': message.expiresAtMs,
+    'disappears': message.disappears ? 1 : 0,
+    'retention_expires_at_ms': message.retentionExpiresAtMs,
     'received_at_ms': message.receivedAtMs,
     'delivered_at_ms': message.deliveredAtMs,
     'read_at_ms': message.readAtMs,
@@ -335,6 +409,8 @@ class SqfliteMessageRepository implements MessageRepository {
       payloadType: MessagePayloadType.fromWire(row['payload_type'] as String),
       createdAtMs: row['created_at_ms'] as int,
       expiresAtMs: row['expires_at_ms'] as int,
+      disappears: (row['disappears'] as int? ?? 1) != 0,
+      retentionExpiresAtMs: row['retention_expires_at_ms'] as int?,
       receivedAtMs: row['received_at_ms'] as int?,
       deliveredAtMs: row['delivered_at_ms'] as int?,
       readAtMs: row['read_at_ms'] as int?,

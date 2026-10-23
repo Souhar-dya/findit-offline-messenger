@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../demo/simulated_peer_agent.dart';
@@ -14,13 +14,14 @@ import 'core_services.dart';
 ///
 /// It is provided to the widget tree with `provider`, so screens and
 /// controllers never construct their own dependencies.
-class AppServices extends ChangeNotifier {
+class AppServices extends ChangeNotifier with WidgetsBindingObserver {
   AppServices({
     required this.core,
     this.simulatedNetwork,
     this.databaseFactory,
     this.demoDatabasePath,
   }) {
+    WidgetsBinding.instance.addObserver(this);
     // Announce inbound messages through the OS. The stream only carries
     // messages that decrypted to this device's own identity, so a notification
     // is never raised for a message addressed to anyone else.
@@ -36,6 +37,8 @@ class AppServices extends ChangeNotifier {
   final DatabaseFactory? databaseFactory;
   final String? demoDatabasePath;
 
+  bool _isInForeground = true;
+
   SimulatedPeerAgent? _demoPeer;
   bool _startingDemo = false;
   String? _demoError;
@@ -44,6 +47,7 @@ class AppServices extends ChangeNotifier {
 
   bool get isDemoRunning => _demoPeer != null;
   bool get isStartingDemo => _startingDemo;
+  bool get isInForeground => _isInForeground;
   String? get demoError => _demoError;
   AppConfig get config => core.config;
 
@@ -136,6 +140,13 @@ class AppServices extends ChangeNotifier {
   /// the master switch is on and the engine is stopped.
   Future<void> ensureNetworkingStarted() async {
     if (core.routingEngine.isRunning) return;
+    // Do not start Wi-Fi Direct unless Wi-Fi is on and the hotspot is off.
+    // The root gate guides the user to the relevant system settings panel.
+    if (requiresPlatformPermissions) {
+      final wifiEnabled = await isWifiEnabled();
+      final hotspotEnabled = await isHotspotEnabled();
+      if (!wifiEnabled || hotspotEnabled) return;
+    }
     try {
       await startNetworking();
     } catch (_) {
@@ -203,6 +214,7 @@ class AppServices extends ChangeNotifier {
     ChatMessage message,
   ) async {
     try {
+      if (_isInForeground) return;
       final sender = await core.identities.find(message.senderId);
       final name = sender?.record.displayName ?? 'Someone nearby';
       final body = message.payloadType == MessagePayloadType.png
@@ -301,7 +313,16 @@ class AppServices extends ChangeNotifier {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final wasForeground = _isInForeground;
+    _isInForeground = state == AppLifecycleState.resumed;
+    if (wasForeground != _isInForeground) notifyListeners();
+    super.didChangeAppLifecycleState(state);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_incomingSub?.cancel());
     unawaited(_demoPeer?.stop());
     unawaited(core.dispose());

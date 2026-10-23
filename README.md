@@ -14,9 +14,9 @@ no cloud in the middle.
 
 ---
 
-## Status: 1.0.0 — working on Android
+## Status: 1.0.1 — working on Android
 
-- **Real, running app.** Version 1.0.0 ships as signed APKs you can install on
+- **Real, running app.** Version 1.0.1 ships as APKs you can install on
   Android 7.0 and newer.
 - **Verified on real phones.** Two-way text and PNG delivery was run on a
   Samsung SM-G990E and a Motorola Edge 60 Pro: they discover each other, form a
@@ -59,6 +59,7 @@ matches your phone:
 | --- | --- |
 | Almost any phone from ~2016 onwards | **`findit-<version>-arm64-v8a.apk`** ← recommended |
 | Older 32-bit phone, or you're not sure | `findit-<version>-universal.apk` (works everywhere, larger) |
+| Older 32-bit ARM phone | `findit-<version>-armeabi-v7a.apk` |
 | Android emulator / some Chromebooks | `findit-<version>-x86_64.apk` |
 
 **Install:**
@@ -70,8 +71,9 @@ matches your phone:
 3. Open the downloaded `.apk` and install.
 4. Launch **FindIt**.
 
-The APKs are built from source by GitHub Actions on every release and signed
-with the project's own release key. If you installed an **early `v0.1.0` build**,
+The four APKs are built from source by GitHub Actions on every release. CI uses
+the configured release keystore when repository secrets are present; otherwise
+it falls back to a debug key. If you installed an **early `v0.1.0` build**,
 uninstall it first — that one was debug-signed.
 
 **iPhone/iPad:** there is no download yet. The iOS build isn't finished and would
@@ -164,6 +166,14 @@ goal is to run **two**, so a message can take whichever path is open.
 The step-by-step plan lives in
 [`docs/ble-transport-plan.md`](docs/ble-transport-plan.md).
 
+**BLE implementation status:** the reusable `MultiTransport` composition layer
+and its fake-transport tests are in the codebase, but production still starts
+`PlatformTransport` directly. BLE still needs its native contract and Dart
+transport, the Android GATT server/client, runtime permission handling, app
+wiring and real-phone verification. In particular, the existing frame reader
+is tied to TCP sockets, so BLE needs a socket-independent framing path (or its
+own equivalent) before it can carry the same protocol.
+
 
 ---
 
@@ -253,18 +263,18 @@ flutter build apk --release --split-per-abi   # + arm64-v8a, armeabi-v7a, x86_64
 
 The version in `pubspec.yaml` has two parts, `version: <name>+<build>`:
 
-- the part before `+` is the **version name** people see (for example `1.0.0`);
+- the part before `+` is the **version name** people see (for example `1.0.1`);
 - the number **after** `+` is the **build number** — a plain counter, not a
   version. Android uses it as `versionCode` to decide whether an install is an
   upgrade, so it must **increase on every release** even when the visible name
-  stays the same (for example `1.0.0+17` then `1.0.0+18`).
+  stays the same (for example `1.0.1+18` then `1.0.1+19`).
 
 Releases are cut by pushing a tag (keep it in step with `version:` in
 `pubspec.yaml`):
 
 ```sh
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
 `android/key.properties` + the upload keystore are git-ignored; CI restores them

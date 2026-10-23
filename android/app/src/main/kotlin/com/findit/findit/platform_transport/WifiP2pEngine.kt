@@ -101,6 +101,11 @@ class WifiP2pEngine(
     private var pendingAddress: String? = null
     private var pendingResult: ((String?, Int?, String?, String?) -> Unit)? = null
 
+    // When this device was first seen owning a Wi-Fi Direct group with no
+    // clients. Used to give a peer that is still joining a grace period before
+    // the leftover group is torn down. 0 means "not currently owner".
+    private var ownedGroupSinceMs: Long = 0L
+
     // Stamped once per engine (i.e. once per app run) and advertised as the TXT
     // "t" key. When an old run leaves its DNS-SD service registered, a discoverer
     // uses "t" to tell this run's service (larger t) from the stale one.
@@ -217,6 +222,7 @@ class WifiP2pEngine(
         }
         val port = portByHandle[handle] ?: 0
         if (port <= 0) {
+            Log.e(TAG, "connect: peer $handle has no advertised data port")
             onResult(
                 null,
                 null,
@@ -229,54 +235,119 @@ class WifiP2pEngine(
             val owner = info.groupOwnerAddress?.hostAddress
             if (info.groupFormed && !info.isGroupOwner && !owner.isNullOrEmpty()) {
                 // Already in a group we do not own; the group owner is the peer.
+                Log.d(TAG, "connect: already in a peer-owned group; dialing $owner:$port")
                 onResult(owner, port, null, null)
                 return@requestConnectionInfo
             }
             if (info.groupFormed && info.isGroupOwner) {
-                // We already own a group. Re-running connect() would tear the
-                // existing group down, and only a client can dial, so there is
-                // nothing to initiate: the peer reaches us.
-                onResult(
-                    null,
-                    null,
-                    TransportContract.ERR_CONNECT_FAILED,
-                    "This device already owns the Wi-Fi Direct group; the peer dials us",
-                )
-                return@requestConnectionInfo
-            }
-            pendingHandle = handle
-            pendingAddress = address
-            pendingResult = onResult
-            val config = WifiP2pConfig().apply {
-                deviceAddress = address
-                // A hint only: negotiation may still elect this device as the
-                // group owner, which is fine because the client is always the
-                // side that dials (see onConnectionInfo).
-                groupOwnerIntent = 0
-            }
-            p2p.connect(
-                channel,
-                config,
-                object : WifiP2pManager.ActionListener {
-                    override fun onSuccess() {
-                        Log.d(TAG, "connect: p2p.connect() accepted; waiting for group formation")
-                        // Group formation continues via CONNECTION_CHANGED. Guard
-                        // it so a peer that never joins cannot hang connect().
-                        scheduleConnectTimeout()
-                    }
+                // We own a group. A group with a client is fine: that client
+                // dials us. A group with *no* clients is a leftover (the peer
+                // that formed it left, or negotiation made us owner and the peer
+                // never joined); it would otherwise block every future connect,
+                // so clear it and start over. Give a peer that is still joining
+                // a short grace period first, so a fresh group is never torn
+                // down mid-join.
+                val now = System.currentTimeMillis()
+                if (ownedGroupSinceMs == 0L) ownedGroupSinceMs = now
+                p2p.requestGroupInfo(channel) { group ->
+                    val clients = group?.clientList
+                    if (clients.isNullOrEmpty() && now - ownedGroupSinceMs >= STALE_GROUP_GRACE_MS) {
+                        Log.d(TAG, "connect: owned group has no clients; clearing it and re-initiating")
+                        p2p.removeGroup(
+                            channel,
+                            object : WifiP2pManager.ActionListener {
+                                override fun onSuccess() {
+                                    ownedGroupSinceMs = 0L
+                                    mainHandler.postDelayed(
+                                        { initiateGroup(handle, address, onResult) },
+                                        GROUP_RESET_DELAY_MS,
+                                    )
+                                }
 
-                    override fun onFailure(reason: Int) {
-                        Log.e(TAG, "connect: p2p.connect() failed reason=$reason")
-                        resolvePending(
+                                override fun onFailure(reason: Int) {
+                                    Log.e(TAG, "connect: could not clear stale group ($reason)")
+                                    onResult(
+                                        null,
+                                        null,
+                                        TransportContract.ERR_CONNECT_FAILED,
+                                        "Could not clear the stale Wi-Fi Direct group ($reason)",
+                                    )
+                                }
+                            },
+                        )
+                    } else {
+                        Log.d(
+                            TAG,
+                            "connect: we own a group with ${clients?.size ?: 0} client(s); the peer dials us",
+                        )
+                        onResult(
                             null,
                             null,
                             TransportContract.ERR_CONNECT_FAILED,
-                            "Wi-Fi Direct connect failed ($reason)",
+                            "This device owns the Wi-Fi Direct group; the peer dials us",
                         )
                     }
-                },
-            )
+                }
+                return@requestConnectionInfo
+            }
+            ownedGroupSinceMs = 0L
+            initiateGroup(handle, address, onResult)
         }
+    }
+
+    /**
+     * Requests a new Wi-Fi Direct group with [handle]. Split out so a stale
+     * group can be torn down and the exact same request re-issued.
+     */
+    private fun initiateGroup(
+        handle: String,
+        address: String,
+        onResult: (host: String?, port: Int?, code: String?, msg: String?) -> Unit,
+    ) {
+        if (!running) {
+            onResult(null, null, TransportContract.ERR_CONNECT_FAILED, "Transport is not running")
+            return
+        }
+        val p2p = this.p2p ?: run {
+            onResult(null, null, TransportContract.ERR_CONNECT_FAILED, "Transport is not running")
+            return
+        }
+        val channel = this.channel ?: run {
+            onResult(null, null, TransportContract.ERR_CONNECT_FAILED, "Transport is not running")
+            return
+        }
+        pendingHandle = handle
+        pendingAddress = address
+        pendingResult = onResult
+        val config = WifiP2pConfig().apply {
+            deviceAddress = address
+            // A hint only: negotiation may still elect this device as the
+            // group owner, which is fine because the client is always the
+            // side that dials (see onConnectionInfo).
+            groupOwnerIntent = 0
+        }
+        p2p.connect(
+            channel,
+            config,
+            object : WifiP2pManager.ActionListener {
+                override fun onSuccess() {
+                    Log.d(TAG, "connect: p2p.connect() accepted; waiting for group formation")
+                    // Group formation continues via CONNECTION_CHANGED. Guard
+                    // it so a peer that never joins cannot hang connect().
+                    scheduleConnectTimeout()
+                }
+
+                override fun onFailure(reason: Int) {
+                    Log.e(TAG, "connect: p2p.connect() failed reason=$reason")
+                    resolvePending(
+                        null,
+                        null,
+                        TransportContract.ERR_CONNECT_FAILED,
+                        "Wi-Fi Direct connect failed ($reason)",
+                    )
+                }
+            },
+        )
     }
 
     override fun stop() {
@@ -301,6 +372,7 @@ class WifiP2pEngine(
         }
         serviceRequestAdded = false
         localService = null
+        ownedGroupSinceMs = 0L
         addressByHandle.clear()
         portByHandle.clear()
         hintByHandle.clear()
@@ -542,21 +614,47 @@ class WifiP2pEngine(
 
         // We were invited into the group. The owner is only known by MAC address
         // from WifiP2pInfo, so look up the handle it advertised and hand the
-        // reachable endpoint to Dart, which opens the datapath.
+        // reachable endpoint to Dart, which opens the datapath. The owner's
+        // service may not have been discovered before the group formed, so keep
+        // retrying (nudging discovery each time) instead of giving up.
+        resolveOwnerAndDial(host)
+    }
+
+    /**
+     * Maps the group owner's MAC to the handle/port it advertised, then hands
+     * the endpoint to Dart. Retries a few times because the group can form
+     * before the owner's DNS-SD advert has been discovered.
+     */
+    private fun resolveOwnerAndDial(host: String, attemptsLeft: Int = JOIN_MAPPING_RETRIES) {
+        val p2p = this.p2p ?: return
+        val channel = this.channel ?: return
         p2p.requestGroupInfo(channel) { group ->
             val ownerMac = group?.owner?.deviceAddress
             val handle = ownerMac?.let { handleByAddress[it] }
             val port = handle?.let { portByHandle[it] } ?: 0
-            if (port <= 0 || handle.isNullOrEmpty()) {
-                Log.e(TAG, "join: owner unknown (mac=$ownerMac port=$port)")
+            if (port > 0 && !handle.isNullOrEmpty()) {
+                Log.d(TAG, "join: dial owner handle=$handle host=$host port=$port")
+                events.onPeerReachable(handle, host, port)
+                return@requestGroupInfo
+            }
+            if (attemptsLeft <= 0) {
+                Log.e(TAG, "join: owner unknown (mac=$ownerMac port=$port) after retries")
                 events.onError(
                     TransportContract.ERR_GENERIC,
                     "Wi-Fi Direct group formed but the peer's data port is unknown",
                 )
                 return@requestGroupInfo
             }
-            Log.d(TAG, "join: dial owner handle=$handle host=$host port=$port")
-            events.onPeerReachable(handle, host, port)
+            Log.d(
+                TAG,
+                "join: owner mac=$ownerMac not mapped yet; retrying (${attemptsLeft - 1} left)",
+            )
+            ensureServiceRequest(p2p, channel)
+            p2p.discoverServices(channel, actionListener("joinMapping"))
+            mainHandler.postDelayed(
+                { if (running) resolveOwnerAndDial(host, attemptsLeft - 1) },
+                JOIN_MAPPING_RETRY_MS,
+            )
         }
     }
 
@@ -666,5 +764,28 @@ class WifiP2pEngine(
 
         /** How long to wait for a requested Wi-Fi Direct group to form. */
         const val CONNECT_TIMEOUT_MS = 15_000L
+
+        /**
+         * Wait after removing a stale, client-less group before re-requesting a
+         * new one. The stack needs a moment to actually drop the group, and
+         * connect() while it is still going away fails.
+         */
+        const val GROUP_RESET_DELAY_MS = 700L
+
+        /**
+         * How long an owned, client-less group must persist before it is treated
+         * as a leftover. Prevents tearing down a group while a peer is still
+         * joining it.
+         */
+        const val STALE_GROUP_GRACE_MS = 6_000L
+
+        /**
+         * How many times to re-check whether the group owner's MAC maps to a
+         * handle/port while acting as the group client. The group can form
+         * before the owner's service is discovered, and dialing without a port
+         * is impossible.
+         */
+        const val JOIN_MAPPING_RETRIES = 8
+        const val JOIN_MAPPING_RETRY_MS = 700L
     }
 }

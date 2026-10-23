@@ -72,7 +72,11 @@ class MaintenanceService {
     final now = _clock.now().millisecondsSinceEpoch;
     final tombstoneExpiry = now + _config.tombstoneRetention.inMilliseconds;
 
-    final messagesExpired = await _messages.expireMessages(
+    final ttlExpired = await _messages.expireMessages(
+      now,
+      tombstoneExpiresAtMs: tombstoneExpiry,
+    );
+    final disappeared = await _messages.deleteDisappearingMessages(
       now,
       tombstoneExpiresAtMs: tombstoneExpiry,
     );
@@ -87,7 +91,7 @@ class MaintenanceService {
     final messagesEvicted = await _messages.evictOldest(
       messageBudget < 0 ? 0 : messageBudget,
     );
-    if (messagesEvicted > 0) _changes.notify();
+    if (messagesEvicted > 0 || disappeared > 0) _changes.notify();
 
     final requestsExpired = await _friends.expireRequests();
     final receiptsPruned = await _receipts.prune(
@@ -100,7 +104,7 @@ class MaintenanceService {
     final reconciled = await _receiptService.reconcile();
 
     return MaintenanceReport(
-      messagesExpired: messagesExpired,
+      messagesExpired: ttlExpired + disappeared,
       messagesEvicted: messagesEvicted,
       bundlesExpired: bundlesExpired,
       requestsExpired: requestsExpired,
@@ -112,6 +116,7 @@ class MaintenanceService {
   /// Starts a periodic cleanup. Safe to call once.
   void start({Duration interval = const Duration(minutes: 5)}) {
     _timer?.cancel();
+    unawaited(runOnce());
     _timer = Timer.periodic(interval, (_) {
       unawaited(runOnce());
     });

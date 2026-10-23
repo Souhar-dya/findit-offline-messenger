@@ -34,6 +34,13 @@ class InboundFrame {
 /// has arrived.
 class FrameStream {
   FrameStream(this._socket, {this.maxFrameBytes = _defaultMaxFrameBytes}) {
+    if (maxFrameBytes <= 0 || maxFrameBytes > _defaultMaxFrameBytes) {
+      throw ArgumentError.value(
+        maxFrameBytes,
+        'maxFrameBytes',
+        'must be between 1 and 32 MiB',
+      );
+    }
     _subscription = _socket.listen(
       _onChunk,
       onError: (Object error) => _fail('Receive error: $error', error),
@@ -131,7 +138,10 @@ class FrameStream {
           (_buffer[2] << 16) |
           (_buffer[3] << 8) |
           (_buffer[4] & 0xff);
-      if (length > maxFrameBytes) {
+      // Dart bitwise integers are signed. A wire length with its high bit set
+      // becomes negative, so reject it before calculating the frame size or
+      // allocating its payload.
+      if (length < 0 || length > maxFrameBytes) {
         _fail('Frame declares length $length above the $maxFrameBytes limit');
         return;
       }

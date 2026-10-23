@@ -243,7 +243,15 @@ class PlatformTransport implements Transport {
     String? localId,
     this.connectTimeout = const Duration(seconds: 15),
     this.maxFrameBytes = 32 * 1024 * 1024,
-  }) : localId = localId ?? _randomHandle();
+  }) : localId = localId ?? _randomHandle() {
+    if (maxFrameBytes <= 0 || maxFrameBytes > 32 * 1024 * 1024) {
+      throw ArgumentError.value(
+        maxFrameBytes,
+        'maxFrameBytes',
+        'must be between 1 and 32 MiB',
+      );
+    }
+  }
 
   @override
   final String localId;
@@ -433,8 +441,15 @@ class PlatformTransport implements Transport {
         'Native transport returned no reachable endpoint for the peer',
       );
     }
-    final socket = await Socket.connect(host, port, timeout: connectTimeout);
-    return _makeConnection(socket, peerId);
+    try {
+      final socket = await Socket.connect(host, port, timeout: connectTimeout);
+      return _makeConnection(socket, peerId);
+    } catch (error) {
+      throw TransportException(
+        'Could not open the data connection to $peerId',
+        cause: error,
+      );
+    }
   }
 
   @override
@@ -452,6 +467,12 @@ class PlatformTransport implements Transport {
       socket.destroy();
       return;
     }
+    // Bound unauthenticated TCP sessions. Discovery is not authentication, and
+    // each accepted socket allocates frame buffers and stream controllers.
+    if (_connections.length >= _maxOpenConnections) {
+      socket.destroy();
+      return;
+    }
     final peerId = '${socket.remoteAddress.address}:${socket.remotePort}';
     final connection = _makeConnection(socket, peerId);
     if (!_incoming.isClosed) _incoming.add(connection);
@@ -463,13 +484,18 @@ class PlatformTransport implements Transport {
       peerId,
       maxFrameBytes: maxFrameBytes,
     );
-    connection.onClosed = () => _handleConnectionClosed(peerId);
+    connection.onClosed = () => _handleConnectionClosed(peerId, connection);
     _connections[peerId] = connection;
     return connection;
   }
 
-  void _handleConnectionClosed(String peerId) {
-    _connections.remove(peerId);
+  void _handleConnectionClosed(
+    String peerId,
+    _PlatformConnection connection,
+  ) {
+    if (identical(_connections[peerId], connection)) {
+      _connections.remove(peerId);
+    }
   }
 
   void _onPlatformEvent(Map<String, Object?> event) {
@@ -692,6 +718,7 @@ class _PlatformConnection implements TransportConnection {
   Future<void> close() async {
     if (!_open) return;
     _open = false;
+    onClosed?.call();
     _failWaiters();
     await _frameSub.cancel();
     await _errorSub.cancel();
@@ -782,3 +809,5 @@ class _PlatformConnection implements TransportConnection {
     }
   }
 }
+
+const int _maxOpenConnections = 32;

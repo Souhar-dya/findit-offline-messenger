@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../core/config/app_config.dart';
 import '../core/errors/app_exception.dart';
 import '../core/protocol/envelope.dart';
+import '../core/settings/settings_service.dart';
 import '../core/utils/bytes.dart';
 import '../core/utils/clock.dart';
 import '../core/utils/ids.dart';
@@ -38,6 +39,7 @@ class MessageService {
     required Clock clock,
     required AppConfig config,
     required MessageChanges changes,
+    required SettingsService settings,
   }) : _messages = messages,
        _identities = identities,
        _outbox = outbox,
@@ -45,7 +47,8 @@ class MessageService {
        _identityHolder = identityHolder,
        _clock = clock,
        _config = config,
-       _changes = changes;
+       _changes = changes,
+       _settings = settings;
 
   final MessageRepository _messages;
   final IdentityRepository _identities;
@@ -55,6 +58,7 @@ class MessageService {
   final Clock _clock;
   final AppConfig _config;
   final MessageChanges _changes;
+  final SettingsService _settings;
 
   final StreamController<ChatMessage> _incoming =
       StreamController<ChatMessage>.broadcast();
@@ -77,10 +81,14 @@ class MessageService {
     return _send(
       recipient: recipient,
       payloadType: MessagePayloadType.text,
-      buildPayload: (id, createdAt, expiresAt) => MessageFactory.buildText(
+      buildPayload:
+          (id, createdAt, expiresAt, disappears, retentionExpiresAt) =>
+              MessageFactory.buildText(
         messageIdHex: id,
         createdAtMs: createdAt,
         expiresAtMs: expiresAt,
+        disappears: disappears,
+        retentionExpiresAtMs: retentionExpiresAt,
         text: trimmed,
       ),
       text: trimmed,
@@ -97,10 +105,14 @@ class MessageService {
     return _send(
       recipient: recipient,
       payloadType: MessagePayloadType.png,
-      buildPayload: (id, createdAt, expiresAt) => MessageFactory.buildPng(
+      buildPayload:
+          (id, createdAt, expiresAt, disappears, retentionExpiresAt) =>
+              MessageFactory.buildPng(
         messageIdHex: id,
         createdAtMs: createdAt,
         expiresAtMs: expiresAt,
+        disappears: disappears,
+        retentionExpiresAtMs: retentionExpiresAt,
         bytes: bytes,
         contentHashHex: validation.contentHashHex,
         width: validation.width,
@@ -122,6 +134,8 @@ class MessageService {
       String id,
       int createdAt,
       int expiresAt,
+      bool disappears,
+      int? retentionExpiresAtMs,
     )
     buildPayload,
     String? text,
@@ -139,6 +153,23 @@ class MessageService {
 
     final createdAt = _nowMs;
     final expiresAt = createdAt + _config.messageTtl.inMilliseconds;
+    final retentionState = await _settings.disappearingStateFor(
+      recipient.identityId,
+    );
+    final applyingAcceptedChange = retentionState.incomingAccepted &&
+        retentionState.lastAppliedRequestId ==
+            retentionState.incomingRequestId;
+    if (retentionState.outgoingCommitSent || applyingAcceptedChange) {
+      throw const StateTransitionException(
+        'Wait for the shared message-setting change to finish before sending',
+      );
+    }
+    final disappears = await _settings.disappearingMessagesEnabledFor(
+      recipient.identityId,
+    );
+    final requestedRetentionExpiry =
+        createdAt + const Duration(hours: 24).inMilliseconds;
+    final retentionExpiresAt = disappears ? requestedRetentionExpiry : null;
     final idHex = Ids.newMessageIdHex();
 
     final message = ChatMessage(
@@ -151,6 +182,8 @@ class MessageService {
       payloadType: payloadType,
       createdAtMs: createdAt,
       expiresAtMs: expiresAt,
+      disappears: disappears,
+      retentionExpiresAtMs: retentionExpiresAt,
       text: text,
       imageBytes: imageBytes,
       imageContentHashHex: imageHash,
@@ -169,7 +202,13 @@ class MessageService {
       type: EnvelopeType.message,
       bundleId: hexToBytes(idHex),
       expiresAtMs: expiresAt,
-      payload: buildPayload(idHex, createdAt, expiresAt),
+      payload: buildPayload(
+        idHex,
+        createdAt,
+        expiresAt,
+        disappears,
+        retentionExpiresAt,
+      ),
     );
     _changes.notify();
     return message;
@@ -269,6 +308,8 @@ class MessageService {
       payloadType: payload.kind,
       createdAtMs: payload.createdAtMs,
       expiresAtMs: payload.expiresAtMs,
+      disappears: payload.disappears,
+      retentionExpiresAtMs: payload.retentionExpiresAtMs,
       text: payload.text,
       imageBytes: imageBytes,
       imageContentHashHex: payload.imageContentHashHex,
@@ -324,6 +365,8 @@ class MessageService {
         messageIdHex: message.id,
         createdAtMs: message.createdAtMs,
         expiresAtMs: message.expiresAtMs,
+        disappears: message.disappears,
+        retentionExpiresAtMs: message.retentionExpiresAtMs,
         text: message.text ?? '',
       );
     }
@@ -331,6 +374,8 @@ class MessageService {
       messageIdHex: message.id,
       createdAtMs: message.createdAtMs,
       expiresAtMs: message.expiresAtMs,
+      disappears: message.disappears,
+      retentionExpiresAtMs: message.retentionExpiresAtMs,
       bytes: message.imageBytes!,
       contentHashHex: message.imageContentHashHex!,
       width: message.imageWidth!,

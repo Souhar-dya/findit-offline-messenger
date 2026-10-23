@@ -173,6 +173,81 @@ class _ConversationBodyState extends State<_ConversationBody> {
       ),
       body: Column(
         children: [
+          if (controller.incomingRetentionRequestId != null &&
+              controller.incomingRetentionEnabled != null)
+            Card(
+              margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      controller.incomingRetentionAccepted
+                          ? 'You accepted the request. Waiting for the change to finish on both phones.'
+                          : '${controller.displayName} requests to '
+                                '${controller.incomingRetentionEnabled! ? 'enable' : 'disable'} '
+                                'disappearing messages for both of you.',
+                    ),
+                    if (!controller.incomingRetentionAccepted) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: controller.updatingDisappearingPreference
+                                ? null
+                                : () => controller.respondToRetentionRequest(
+                                    accept: false,
+                                  ),
+                            child: const Text('Decline'),
+                          ),
+                          FilledButton(
+                            onPressed: controller.updatingDisappearingPreference
+                                ? null
+                                : () => controller.respondToRetentionRequest(
+                                    accept: true,
+                                  ),
+                            child: const Text('Accept'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          if (controller.outgoingRetentionRequestId != null)
+            ListTile(
+              dense: true,
+              leading: Icon(
+                controller.outgoingRetentionCommitting
+                    ? Icons.sync
+                    : Icons.hourglass_top,
+              ),
+              title: Text(
+                controller.outgoingRetentionCommitting
+                    ? 'Applying shared message setting…'
+                    : 'Waiting for ${controller.displayName} to approve this change',
+              ),
+            ),
+          SwitchListTile(
+            title: const Text('Disappearing messages'),
+            subtitle: Text(
+              controller.outgoingRetentionRequestId != null
+                  ? 'The current shared setting remains in effect until approved.'
+                  : controller.disappearingMessagesEnabled
+                  ? 'Messages are deleted from both phones after 24 hours.'
+                  : 'Messages are kept on both phones.',
+            ),
+            value: controller.disappearingMessagesEnabled,
+            onChanged: controller.updatingDisappearingPreference ||
+                    controller.incomingRetentionRequestId != null ||
+                    controller.outgoingRetentionRequestId != null
+                ? null
+                : controller.setDisappearingMessagesEnabled,
+            secondary: const Icon(Icons.timer_outlined),
+          ),
           if (controller.error != null)
             Padding(
               padding: const EdgeInsets.all(8),
@@ -185,9 +260,9 @@ class _ConversationBodyState extends State<_ConversationBody> {
                 ? const EmptyState(
                     icon: Icons.lock_outline,
                     title: 'No messages yet',
-                    message:
-                        'Messages are end-to-end encrypted and expire 24 '
-                        'hours after they are created.',
+                    message: controller.disappearingMessagesEnabled
+                        ? 'Messages are end-to-end encrypted and deleted after 24 hours.'
+                        : 'Messages are end-to-end encrypted and kept on both phones.',
                   )
                 : ListView.builder(
                     controller: _scroll,
@@ -202,7 +277,7 @@ class _ConversationBodyState extends State<_ConversationBody> {
           ),
           _Composer(
             controller: _input,
-            busy: controller.sending,
+            busy: controller.sending || controller.retentionChangeApplying,
             onSend: _sendText,
             onAttach: _attachPng,
           ),
