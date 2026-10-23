@@ -32,14 +32,14 @@ class NetworkingGateScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'FindIt is radio silent',
+                    'Paxby is radio silent',
                     style: theme.textTheme.headlineSmall,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
                   Text(
                     'This is the only switch. While it is off, nothing is '
-                    'discovered, sent or received. Turn it on to start FindIt: '
+                    'discovered, sent or received. Turn it on to start Paxby: '
                     'discover nearby peers and send and receive your own '
                     'messages. Your device may then also carry encrypted '
                     'messages for other people (you can never read them).',
@@ -63,8 +63,8 @@ class NetworkingGateScreen extends StatelessWidget {
                                 .setNetworkingEnabled(value),
                       title: Text(
                         settings.networkingEnabled
-                            ? 'FindIt is on'
-                            : 'FindIt is off',
+                            ? 'Paxby is on'
+                            : 'Paxby is off',
                         style: theme.textTheme.titleMedium,
                       ),
                       subtitle: const Text('Use the radio'),

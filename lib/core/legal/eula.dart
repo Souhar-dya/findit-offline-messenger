@@ -14,7 +14,7 @@ class EulaDocument {
 
   static const String intro =
       'This End User License Agreement ("Agreement") is a legal agreement '
-      'between you ("User") and Souhardya Kundu ("Licensor") for the FindIt '
+      'between you ("User") and Souhardya Kundu ("Licensor") for the Paxby '
       'application ("App"). By installing or using the App you agree to the '
       'terms of this Agreement. This Agreement incorporates the Acceptable Use '
       'Policy by reference.';
@@ -22,7 +22,7 @@ class EulaDocument {
   static const List<LegalSection> sections = <LegalSection>[
     LegalSection(
       '1. Definitions',
-      '"App" means the FindIt application, including all code, documentation, '
+      '"App" means the Paxby application, including all code, documentation, '
           'and updates. "User" means the person who installs or uses the App. '
           '"Content" means messages, images, and other data the User sends or '
           'receives through the App. "Licensor" means Souhardya Kundu, the '

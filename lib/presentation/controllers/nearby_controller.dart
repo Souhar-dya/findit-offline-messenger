@@ -152,7 +152,7 @@ class NearbyController extends ChangeNotifier {
           if (!granted) {
             _needsPermission = true;
             _error =
-                'FindIt needs the Nearby devices permission to find peers. '
+                'Paxby needs the Nearby devices permission to find peers. '
                 'Grant it, then tap Start again.';
             return;
           }

@@ -15,7 +15,7 @@ import com.findit.findit.MainActivity
 import com.findit.findit.R
 
 /**
- * A foreground service that keeps the FindIt process alive while the master
+ * A foreground service that keeps the Paxby process alive while the master
  * networking switch is on, so Wi-Fi Direct discovery and the TCP receive socket
  * keep working when the app is not on screen.
  *
@@ -62,7 +62,7 @@ class NetworkingService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
         // Not sticky: if the process is killed we do not want a notification
-        // claiming FindIt is on while nothing is actually running.
+        // claiming Paxby is on while nothing is actually running.
         return START_NOT_STICKY
     }
 
@@ -85,7 +85,7 @@ class NetworkingService : Service() {
             "Nearby networking",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Shown while FindIt is discovering nearby devices."
+            description = "Shown while Paxby is discovering nearby devices."
             setShowBadge(false)
         }
         manager.createNotificationChannel(channel)
@@ -101,7 +101,7 @@ class NetworkingService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("FindIt is on")
+            .setContentTitle("Paxby is on")
             .setContentText("Discovering nearby devices and receiving messages.")
             .setSmallIcon(R.drawable.ic_stat_findit)
             .setOngoing(true)

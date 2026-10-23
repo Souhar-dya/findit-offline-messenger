@@ -75,7 +75,7 @@ class _PermissionGateScreenState extends State<PermissionGateScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'FindIt needs the Nearby devices permission to find other '
+                    'Paxby needs the Nearby devices permission to find other '
                     'phones over Wi-Fi Direct. It is never used for location '
                     'tracking. The app cannot discover or message anyone until '
                     'you allow it.',
@@ -86,7 +86,7 @@ class _PermissionGateScreenState extends State<PermissionGateScreen> {
                     const SizedBox(height: 12),
                     Text(
                       'Permission was denied. Tap Grant to try again, or open '
-                      'Settings and enable Nearby devices / Location for FindIt.',
+                      'Settings and enable Nearby devices / Location for Paxby.',
                       style: theme.textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),

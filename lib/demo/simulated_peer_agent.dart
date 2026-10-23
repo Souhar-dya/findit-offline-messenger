@@ -9,7 +9,7 @@ import '../crypto/secret_store.dart';
 import '../domain/entities/chat_message.dart';
 import '../transport/simulated_transport.dart';
 
-/// A second, fully independent FindIt instance running in-process.
+/// A second, fully independent Paxby instance running in-process.
 ///
 /// It shares only the [SimulatedNetwork]; everything else (identity, database,
 /// crypto, routing engine) is separate. This makes it a genuine peer: friend

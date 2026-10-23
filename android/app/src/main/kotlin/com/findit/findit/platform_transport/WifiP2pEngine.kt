@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Wi-Fi Direct (Wi-Fi P2P) connectivity fabric.
  *
  * Responsibilities (nothing else — all protocol stays in Dart over TCP):
- *  1. Discover nearby FindIt peers over Wi-Fi Direct DNS-SD.
+ *  1. Discover nearby Paxby peers over Wi-Fi Direct DNS-SD.
  *  2. Advertise this device's opaque handle + Dart `dataPort` + display hint via
  *     Wi-Fi Direct DNS-SD ([WifiP2pDnsSdServiceInfo]) so a peer that discovers
  *     us learns where to connect.
@@ -247,7 +247,7 @@ class WifiP2pEngine(
                 return@requestConnectionInfo
             }
             if (info.groupFormed && info.isGroupOwner) {
-                // We own a group. Invite new peers into it so one FindIt group
+                // We own a group. Invite new peers into it so one Paxby group
                 // can carry traffic for several nearby devices. A group with
                 // *no* clients is a leftover (the peer
                 // that formed it left, or negotiation made us owner and the peer
@@ -484,7 +484,7 @@ class WifiP2pEngine(
     /**
      * Handles one advertised DNS-SD service.
      *
-     * A single device can have several FindIt services registered at once: a
+     * A single device can have several Paxby services registered at once: a
      * Wi-Fi Direct service registration survives its app being killed, so an
      * earlier run's advert lingers and Android keeps returning it. Treating each
      * service as its own peer showed the same phone twice and made the app dial a
@@ -796,7 +796,7 @@ class WifiP2pEngine(
         // A DNS-SD type understood by Wi-Fi Direct. The app-specific meaning is
         // carried in the instance name (the handle) and TXT records.
         const val SERVICE_TYPE = "_presence._tcp"
-        const val TAG = "FindIt/Transport"
+        const val TAG = "Paxby/Transport"
 
         /**
          * Re-issue service discovery this often.

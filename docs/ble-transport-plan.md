@@ -1,4 +1,4 @@
-# FindIt — two radios: BLE + Wi-Fi Direct
+# Paxby — two radios: BLE + Wi-Fi Direct
 
 > **Status: partly built.** Phase 0 (`MultiTransport`, Dart only) is
 > implemented and unit-tested — see `lib/transport/multi_transport.dart` and
@@ -9,7 +9,7 @@
 
 ## 1. The goal
 
-Today FindIt has exactly one transport: **Wi-Fi Direct** on Android. It is fast
+Today Paxby has exactly one transport: **Wi-Fi Direct** on Android. It is fast
 and it carries PNGs, but it has real weaknesses:
 
 - some phones/OEMs expose it badly or not at all;
@@ -169,7 +169,7 @@ production two-radio setup.
 ## 6. Phase 2 — `BleEngine.kt` (Android)
 
 The largest and least deterministic part. **Not** the Bluetooth SIG "Mesh"
-profile — that is for sensors; FindIt's own routing already does the
+profile — that is for sensors; Paxby's own routing already does the
 store-carry-forward part.
 
 - **GATT server + client** with one service and one framed characteristic.
@@ -228,6 +228,6 @@ and a real testing session.
 
 ## 11. Non-goals
 
-- The Bluetooth SIG **Mesh profile**. (We would reuse FindIt's routing instead.)
+- The Bluetooth SIG **Mesh profile**. (We would reuse Paxby's routing instead.)
 - iOS BLE. (The Dart side would port, but the iOS native transport isn't built.)
 - Any internet or server relay. There still isn't one.

@@ -40,17 +40,17 @@ class SettingsController extends ChangeNotifier {
         final granted = await _services.ensurePermissions();
         if (!granted) {
           _status =
-              'FindIt needs the Nearby devices permission to use the radio. '
+              'Paxby needs the Nearby devices permission to use the radio. '
               'Grant it, then turn the switch on again.';
           return;
         }
       }
       await _services.setNetworkingEnabled(value);
       _status = value
-          ? 'FindIt is on. This device can discover nearby peers, send and '
+          ? 'Paxby is on. This device can discover nearby peers, send and '
                 'receive your messages, and may carry encrypted messages for '
                 'others.'
-          : 'FindIt is radio silent. Nothing is discovered, sent or received, '
+          : 'Paxby is radio silent. Nothing is discovered, sent or received, '
                 'and any stored third-party bundles were deleted.';
     } catch (error) {
       _status = 'Could not change networking: $error';

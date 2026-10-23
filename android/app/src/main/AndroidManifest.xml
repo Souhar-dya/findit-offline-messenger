@@ -2,7 +2,7 @@
     <!-- Local-only peer-to-peer networking (Wi-Fi Direct / Wi-Fi Aware data
          channels and TCP listeners). INTERNET is required for *any* socket
          networking on Android even when it only ever touches the local
-         network; FindIt never negotiates external connectivity. -->
+         network; Paxby never negotiates external connectivity. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
@@ -25,7 +25,7 @@
     <!-- Foreground service so discovery and receiving keep working while the
          app is not on screen. connectedDevice is the type for devices connected
          to this phone over Wi-Fi/Bluetooth. POST_NOTIFICATIONS (13+) lets the
-         ongoing "FindIt is on" notification be shown. -->
+         ongoing "Paxby is on" notification be shown. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -37,7 +37,7 @@
     <uses-feature android:name="android.hardware.wifi.aware" android:required="false"/>
 
     <application
-        android:label="findit"
+        android:label="Paxby"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -63,7 +63,7 @@
             </intent-filter>
         </activity>
         <!-- Keeps the process alive (and shows an ongoing notification) while
-             FindIt is discovering nearby devices in the background. -->
+             Paxby is discovering nearby devices in the background. -->
         <service
             android:name=".networking.NetworkingService"
             android:exported="false"

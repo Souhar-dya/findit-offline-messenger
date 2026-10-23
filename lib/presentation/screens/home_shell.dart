@@ -211,7 +211,7 @@ class _HotspotPrompt extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     'Your phone is sharing its connection. The hotspot '
-                    'prevents FindIt from using Wi-Fi Direct, so you cannot '
+                    'prevents Paxby from using Wi-Fi Direct, so you cannot '
                     'use the app until it is turned off.',
                     style: theme.textTheme.bodyMedium,
                     textAlign: TextAlign.center,
@@ -273,11 +273,11 @@ class _WifiPrompt extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     hotspotOn
-                        ? 'FindIt talks to nearby devices directly over Wi-Fi '
+                        ? 'Paxby talks to nearby devices directly over Wi-Fi '
                               '(Wi-Fi Direct). The hotspot is active and Wi-Fi '
                               'is unavailable for nearby connections. Turn off '
                               'the hotspot, then enable Wi-Fi to continue.'
-                        : 'FindIt talks to nearby devices directly over Wi-Fi '
+                        : 'Paxby talks to nearby devices directly over Wi-Fi '
                               '(Wi-Fi Direct). With Wi-Fi off and no active '
                               'hotspot, it cannot find or message anyone. '
                               'Enable Wi-Fi to continue; internet access is '

@@ -103,11 +103,11 @@ class _StatusCard extends StatelessWidget {
         children: [
           Text(
             running
-                ? 'Keep Wi-Fi on and stay nearby. FindIt connects discovered '
+                ? 'Keep Wi-Fi on and stay nearby. Paxby connects discovered '
                       'devices automatically. Android may ask you to approve '
                       'a Wi-Fi Direct invitation.'
-                : 'FindIt is not looking right now. Switch it on in Profile → '
-                      'FindIt network to discover devices around you.',
+                : 'Paxby is not looking right now. Switch it on in Profile → '
+                      'Paxby network to discover devices around you.',
           ),
         ],
       ),
@@ -125,7 +125,7 @@ class _DemoPeerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       title: 'Demo peer',
-      subtitle: 'A second FindIt on this device · no radio is used',
+      subtitle: 'A second Paxby on this device · no radio is used',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

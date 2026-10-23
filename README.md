@@ -1,27 +1,27 @@
-# FindIt
+# Paxby
 
 **Offline-first messaging that needs no account, no server and no internet.**
 
-FindIt is an Android messenger for phones that are physically near each other.
+Paxby is an Android messenger for phones that are physically near each other.
 Text messages and PNG images hop directly between devices over Wi-Fi Direct, and
 can be carried onward by other phones you pass by (*store-carry-forward*) — with
 no cloud in the middle.
 
-[![CI](https://github.com/Souhar-dya/findit-offline-messenger/actions/workflows/ci.yml/badge.svg)](https://github.com/Souhar-dya/findit-offline-messenger/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/Souhar-dya/findit-offline-messenger?label=download&sort=semver)](https://github.com/Souhar-dya/findit-offline-messenger/releases/latest)
+[![CI](https://github.com/Souhar-dya/paxby-messenger/actions/workflows/ci.yml/badge.svg)](https://github.com/Souhar-dya/paxby-messenger/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/Souhar-dya/paxby-messenger?label=download&sort=semver)](https://github.com/Souhar-dya/paxby-messenger/releases/latest)
 
-![FindIt screens: accept the terms, choose a friend from Chats, and view a conversation with shared disappearing-message settings](docs/preview.svg)
+![Paxby screens: accept the terms, choose a friend from Chats, and view a conversation with shared disappearing-message settings](docs/preview.svg)
 
 ---
 
-## Status: 1.0.1 — working on Android
+## Status: 1.0.2 — working on Android
 
-- **Real, running app.** Version 1.0.1 ships as APKs you can install on
+- **Real, running app.** Version 1.0.2 ships as APKs you can install on
   Android 7.0 and newer.
 - **Verified on real phones.** Two-way text and PNG delivery was run on a
   Samsung SM-G990E and a Motorola Edge 60 Pro: they discover each other, form a
   direct link, complete a verified handshake, and show delivery receipts.
-- **No lies about reach.** FindIt says exactly what it can do. There are no fake
+- **No lies about reach.** Paxby says exactly what it can do. There are no fake
   "nearby" devices, no Bluetooth fallback, and it never pretends to be online
   when it isn't.
 - **Honest limits** are listed in [*What's verified and what isn't*](#whats-verified-and-what-isnt).
@@ -30,7 +30,7 @@ no cloud in the middle.
 
 ---
 
-## What FindIt does
+## What Paxby does
 
 - **Message with no network.** No account, no phone number, no SIM, no internet.
   Your identity is a key pair created on the device.
@@ -44,7 +44,7 @@ no cloud in the middle.
 - **Notifications for real arrivals.** When a message is decrypted for you, you
   get a normal Android notification. Because only your phone holds your private
   key, a notification can never be shown for somebody else's message.
-- **One switch, off by default.** Until you turn it on, FindIt is completely
+- **One switch, off by default.** Until you turn it on, Paxby is completely
   **radio silent**. That single switch controls *everything* — discovery,
   sending, receiving and relaying.
 
@@ -57,10 +57,10 @@ matches your phone:
 
 | Your device | File to download |
 | --- | --- |
-| Almost any phone from ~2016 onwards | **`findit-<version>-arm64-v8a.apk`** ← recommended |
-| Older 32-bit phone, or you're not sure | `findit-<version>-universal.apk` (works everywhere, larger) |
-| Older 32-bit ARM phone | `findit-<version>-armeabi-v7a.apk` |
-| Android emulator / some Chromebooks | `findit-<version>-x86_64.apk` |
+| Almost any phone from ~2016 onwards | **`paxby-<version>-arm64-v8a.apk`** ← recommended |
+| Older 32-bit phone, or you're not sure | `paxby-<version>-universal.apk` (works everywhere, larger) |
+| Older 32-bit ARM phone | `paxby-<version>-armeabi-v7a.apk` |
+| Android emulator / some Chromebooks | `paxby-<version>-x86_64.apk` |
 
 **Install:**
 
@@ -69,7 +69,7 @@ matches your phone:
    (**Settings → Apps → Special app access → Install unknown apps** → your
    browser or files app).
 3. Open the downloaded `.apk` and install.
-4. Launch **FindIt**.
+4. Launch **Paxby**.
 
 The four APKs are built from source by GitHub Actions on every release. CI uses
 the configured release keystore when repository secrets are present; otherwise
@@ -81,7 +81,7 @@ need an Apple Developer account plus App Store / TestFlight review.
 
 ---
 
-## Using FindIt
+## Using Paxby
 
 **1 · Accept the terms.** On first launch you read a short terms page and tick
 *"I have read and agree."* Nothing is sent or received before this.
@@ -89,7 +89,7 @@ need an Apple Developer account plus App Store / TestFlight review.
 **2 · Choose a friend in Chats.** The Chats screen keeps your friends at the top
 so you can start a conversation, with existing chats sorted by recent activity.
 The radio control in Profile still gates discovery and messaging; when it is
-off, FindIt is radio silent.
+off, Paxby is radio silent.
 
 **3 · Create your identity.** Choose a display name. Your keys are generated on
 the device; the private half is stored in the platform secure storage (Android
@@ -113,9 +113,9 @@ genuinely discovered — it never invents devices to look busy.
 
 ## How it works
 
-![How a FindIt message travels](docs/how-it-works.svg)
+![How a Paxby message travels](docs/how-it-works.svg)
 
-FindIt is deliberately small and readable. Every claim below is implemented in
+Paxby is deliberately small and readable. Every claim below is implemented in
 the open source in this repository.
 
 - **Your identity is local.** A signing key (Ed25519) and a key-agreement key
@@ -139,7 +139,7 @@ the open source in this repository.
 
 ### Wi-Fi Direct now, both radios later
 
-FindIt moves data between two ordinary phones with **no router, no server and no
+Paxby moves data between two ordinary phones with **no router, no server and no
 pairing ceremony**. Today it uses one radio, picked because it fits the job; the
 goal is to run **two**, so a message can take whichever path is open.
 
@@ -162,7 +162,7 @@ goal is to run **two**, so a message can take whichever path is open.
   encryption, and may even mix along one path.
 
 > **Honest:** running both radios in one build is the **plan, not a current
-> feature**. Today FindIt uses Wi-Fi Direct only. BLE needs its own discovery and
+> feature**. Today Paxby uses Wi-Fi Direct only. BLE needs its own discovery and
 > datapath built and tested on real phones, and we won't claim it until it does.
 
 The step-by-step plan lives in
@@ -197,7 +197,7 @@ own equivalent) before it can carry the same protocol.
 
 ## What's verified and what isn't
 
-FindIt is honest about its own state. Here is exactly what is tested and what is
+Paxby is honest about its own state. Here is exactly what is tested and what is
 not, so you can trust the parts that are done and see the parts that aren't.
 
 **Done and tested**
@@ -222,7 +222,7 @@ not, so you can trust the parts that are done and see the parts that aren't.
 
 **Honest about audits**
 
-FindIt has **not** had an independent third-party security audit. That is not a
+Paxby has **not** had an independent third-party security audit. That is not a
 claim that something is broken — it simply means the code is written and
 reviewed by its own author, who has read the standards but isn't a paid security
 firm, and no external reviewer has signed off on it yet. The whole design is
@@ -241,7 +241,7 @@ channel for anything critical.
 - **Carriers see metadata** (approximate time, size, hop path) even though they
   cannot read content.
 - **Hotspot conflict.** Sharing your mobile hotspot turns the Wi-Fi radio into an
-  access point, which on most phones stops Wi-Fi Direct from working. FindIt
+  access point, which on most phones stops Wi-Fi Direct from working. Paxby
   detects this and tells you to turn the hotspot off.
 - Consent is a one-time, on-device acceptance: a transparent gate, not a defence
   against a rooted or hostile device.
@@ -284,6 +284,6 @@ from repository secrets, and falls back to the debug key when they're absent.
 
 ---
 
-*FindIt is a privacy-focused, decentralized messenger built around a replaceable
+*Paxby is a privacy-focused, decentralized messenger built around a replaceable
 peer-to-peer transport. See the repository's commit history and workflows for how
 it is built and tested.*

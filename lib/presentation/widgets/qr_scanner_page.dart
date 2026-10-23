@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-/// A camera page that scans a FindIt identity QR code and pops with the raw
+/// A camera page that scans a Paxby identity QR code and pops with the raw
 /// payload string.
 ///
 /// Camera permission is requested by the plugin. On platforms without a camera
@@ -58,7 +58,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
               color: Colors.black54,
               padding: const EdgeInsets.all(16),
               child: const Text(
-                'Point the camera at a FindIt identity QR code.',
+                'Point the camera at a Paxby identity QR code.',
                 style: TextStyle(color: Colors.white),
                 textAlign: TextAlign.center,
               ),

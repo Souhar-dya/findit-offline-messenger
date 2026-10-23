@@ -14,8 +14,8 @@ import 'presentation/screens/onboarding_screen.dart';
 import 'presentation/screens/permission_gate_screen.dart';
 
 /// The root application widget.
-class FindItApp extends StatelessWidget {
-  const FindItApp({super.key, required this.services});
+class PaxbyApp extends StatelessWidget {
+  const PaxbyApp({super.key, required this.services});
 
   final AppServices services;
 
@@ -41,7 +41,7 @@ class FindItApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'FindIt',
+        title: 'Paxby',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorSchemeSeed: const Color(0xFF2E6B5E),
@@ -210,14 +210,14 @@ class _WifiRequiredScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     hotspotEnabled
-                        ? 'The hotspot is active and prevents FindIt from '
+                        ? 'The hotspot is active and prevents Paxby from '
                               'using Wi-Fi Direct. Turn off the hotspot in '
                               'system settings to continue.'
-                        : 'FindIt uses Wi-Fi Direct to find and connect to '
+                        : 'Paxby uses Wi-Fi Direct to find and connect to '
                               'nearby phones. Internet access is not required. '
                               'Wi-Fi is off and the hotspot is not active, so '
-                              'FindIt cannot start nearby connections. Enable '
-                              'Wi-Fi in system settings; FindIt will continue '
+                              'Paxby cannot start nearby connections. Enable '
+                              'Wi-Fi in system settings; Paxby will continue '
                               'once the radio is on.',
                     style: theme.textTheme.bodyMedium,
                     textAlign: TextAlign.center,

@@ -19,7 +19,7 @@ class ProfileScreen extends StatelessWidget {
         ? 'This build runs a self-contained demo. No Wi-Fi or Bluetooth is '
               'used.'
         : settings.canDiscover
-        ? 'FindIt reaches other nearby FindIt devices directly over Wi-Fi. '
+        ? 'Paxby reaches other nearby Paxby devices directly over Wi-Fi. '
               'Both devices need Wi-Fi on and must be within range.'
         : 'This device cannot reach other nearby devices over Wi-Fi yet, so '
               'discovery is unavailable.';
@@ -91,7 +91,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           SectionCard(
-            title: 'FindIt networking',
+            title: 'Paxby networking',
             subtitle: settings.networkingEnabled
                 ? 'On · discovering nearby peers and exchanging messages'
                 : 'Off · radio silent (nothing discovered, sent or received)',
@@ -106,8 +106,8 @@ class ProfileScreen extends StatelessWidget {
                       : (value) => settings.setNetworkingEnabled(value),
                   title: Text(
                     settings.networkingEnabled
-                        ? 'FindIt is on'
-                        : 'FindIt is radio silent',
+                        ? 'Paxby is on'
+                        : 'Paxby is radio silent',
                   ),
                 ),
                 const Text(
@@ -137,7 +137,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'When storage fills up, FindIt automatically removes the '
+                  'When storage fills up, Paxby automatically removes the '
                   'oldest messages first.',
                   style: TextStyle(fontSize: 12),
                 ),

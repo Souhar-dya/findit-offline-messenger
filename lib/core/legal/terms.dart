@@ -19,7 +19,7 @@ class TermsDocument {
   static const String title = 'Acceptable Use Policy';
 
   static const String intro =
-      'These rules govern how you may use FindIt. They form part of, and are '
+      'These rules govern how you may use Paxby. They form part of, and are '
       'incorporated into, the End User License Agreement (EULA). Read them '
       'before you continue: by accepting, you agree to this Acceptable Use '
       'Policy and to the EULA. No data is transferred until you accept.';
@@ -27,7 +27,7 @@ class TermsDocument {
   static const List<LegalSection> sections = <LegalSection>[
     LegalSection(
       'Prohibited conduct',
-      'You may not use FindIt to: 1. send or transmit anything unlawful, or '
+      'You may not use Paxby to: 1. send or transmit anything unlawful, or '
           'use the App to break the law; 2. send content that infringes another '
           'person\'s copyright, trademark, or other intellectual-property '
           'rights; 3. threaten, harass, defame, bully, or target other users, '
@@ -43,7 +43,7 @@ class TermsDocument {
     ),
     LegalSection(
       'What the developer can and cannot do',
-      'FindIt is a decentralized, peer-to-peer application. The developer does '
+      'Paxby is a decentralized, peer-to-peer application. The developer does '
           'not operate servers, does not store your content, and cannot access '
           'or remove content from another user\'s device. Once content is '
           'delivered to another user\'s device, the developer has no ability to '

@@ -1,8 +1,8 @@
-# Acceptable Use Policy — FindIt
+# Acceptable Use Policy — Paxby
 
 **Last updated:** 2026-10-12
 
-This Acceptable Use Policy ("Policy") governs how the User may use the FindIt application ("App"). It is incorporated by reference into the [End User License Agreement](EULA.md). Violating this Policy is a breach of the EULA.
+This Acceptable Use Policy ("Policy") governs how the User may use the Paxby application ("App"). It is incorporated by reference into the [End User License Agreement](EULA.md). Violating this Policy is a breach of the EULA.
 
 ---
 
@@ -23,7 +23,7 @@ The User may not use the App to:
 
 ## What the Licensor Can and Cannot Do
 
-FindIt is a decentralized, peer-to-peer application. The Licensor does not operate servers, does not store User Content, and cannot access or remove content from another User's device. Once Content is delivered to another User's device, the Licensor has no ability to delete, modify, or retract it.
+Paxby is a decentralized, peer-to-peer application. The Licensor does not operate servers, does not store User Content, and cannot access or remove content from another User's device. Once Content is delivered to another User's device, the Licensor has no ability to delete, modify, or retract it.
 
 Because of this architecture, the Licensor's enforcement options are limited to actions within its own control:
 
