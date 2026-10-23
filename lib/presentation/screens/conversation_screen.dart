@@ -257,7 +257,7 @@ class _ConversationBodyState extends State<_ConversationBody> {
             child: controller.loading && controller.messages.isEmpty
                 ? const LoadingView(label: 'Loading messages…')
                 : controller.messages.isEmpty
-                ? const EmptyState(
+                ? EmptyState(
                     icon: Icons.lock_outline,
                     title: 'No messages yet',
                     message: controller.disappearingMessagesEnabled

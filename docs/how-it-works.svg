@@ -58,6 +58,10 @@
     <text x="345" y="188" font-size="10" fill="#49454F" text-anchor="middle">encrypted</text>
     <text x="695" y="188" font-size="10" fill="#49454F" text-anchor="middle">encrypted</text>
 
+    <!-- alternate direct route, shown below the relay path -->
+    <line x1="250" y1="326" x2="790" y2="326" stroke="#2E7D5B" stroke-width="2.5" stroke-dasharray="5 5" marker-end="url(#arrow)"/>
+    <text x="520" y="320" font-size="10" font-weight="600" fill="#2E7D5B" text-anchor="middle">direct encrypted link</text>
+
     <text x="520" y="392" font-size="12" font-weight="600" fill="#1C1B1F" text-anchor="middle">Direct when two phones meet, or carried store-carry-forward by a peer that happens to be switched on.</text>
     <text x="520" y="414" font-size="11" fill="#79747E" text-anchor="middle">No internet required · Bluetooth is never used · every carrier is itself radio silent until its own switch is on</text>
   </g>

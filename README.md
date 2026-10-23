@@ -10,7 +10,7 @@ no cloud in the middle.
 [![CI](https://github.com/Souhar-dya/findit-offline-messenger/actions/workflows/ci.yml/badge.svg)](https://github.com/Souhar-dya/findit-offline-messenger/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/Souhar-dya/findit-offline-messenger?label=download&sort=semver)](https://github.com/Souhar-dya/findit-offline-messenger/releases/latest)
 
-![FindIt preview: accept the terms, flip the one switch, chat with text and PNG](docs/preview.svg)
+![FindIt screens: accept the terms, choose a friend from Chats, and view a conversation with shared disappearing-message settings](docs/preview.svg)
 
 ---
 
@@ -86,11 +86,10 @@ need an Apple Developer account plus App Store / TestFlight review.
 **1 · Accept the terms.** On first launch you read a short terms page and tick
 *"I have read and agree."* Nothing is sent or received before this.
 
-**2 · Flip the one switch.** Next you see a single switch — and *nothing else*.
-It is **off**, which means FindIt is radio silent: nothing is being discovered,
-and nothing is sent or received, not even your own messages. Turn it on and the
-rest of the app appears. Turn it off again any time (Profile) and it goes quiet
-immediately, dropping any messages it was carrying for other people.
+**2 · Choose a friend in Chats.** The Chats screen keeps your friends at the top
+so you can start a conversation, with existing chats sorted by recent activity.
+The radio control in Profile still gates discovery and messaging; when it is
+off, FindIt is radio silent.
 
 **3 · Create your identity.** Choose a display name. Your keys are generated on
 the device; the private half is stored in the platform secure storage (Android
@@ -100,8 +99,10 @@ Keystore) and is **never exported**.
 the other person's identity QR (Friends / Profile) or paste their identity
 payload. Then send a friend request — the chat opens only when they accept.
 
-**4 · Send messages.** Open a contact and send text, or attach a PNG image. A
-signed delivery receipt flips the message to *delivered* once it actually
+**4 · Send messages.** Open a friend from Chats and send text, or attach a PNG
+image. Disappearing messages are enabled by default: both copies expire after
+24 hours. Changing that setting requires the other person to accept in the chat.
+A signed delivery receipt flips the message to *delivered* once it actually
 arrives.
 
 **Nearby** shows what the transport can really do and which peers it has

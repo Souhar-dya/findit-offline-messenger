@@ -97,10 +97,12 @@ class _RootGateState extends State<RootGate> with WidgetsBindingObserver {
     if (!mounted) return;
     final services = context.read<AppServices>();
     if (!services.requiresPlatformPermissions) {
-      if (mounted) setState(() {
-        _wifiChecked = true;
-        _wifiEnabled = true;
-      });
+      if (mounted) {
+        setState(() {
+          _wifiChecked = true;
+          _wifiEnabled = true;
+        });
+      }
       return;
     }
     final enabled = await services.isWifiEnabled();

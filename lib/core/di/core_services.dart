@@ -144,7 +144,6 @@ class CoreServices {
       clock: clock,
       config: config,
       changes: messageChanges,
-      settings: settings,
     );
     final retentionService = RetentionService(
       settings: settings,
@@ -189,7 +188,6 @@ class CoreServices {
       friends: friendService,
       messageService: messageService,
       receiptService: receiptService,
-      retentionService: retentionService,
       changes: messageChanges,
       clock: clock,
       config: config,
@@ -212,6 +210,7 @@ class CoreServices {
       messageChanges: messageChanges,
       friendService: friendService,
       receiptService: receiptService,
+      retentionService: retentionService,
       messageService: messageService,
       routingEngine: routingEngine,
       maintenance: maintenance,

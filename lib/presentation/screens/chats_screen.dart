@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../domain/entities/conversation_summary.dart';
 import '../controllers/chats_controller.dart';
 import '../widgets/common.dart';
-import '../../domain/entities/conversation_summary.dart';
 import 'conversation_screen.dart';
 
 /// The Chats tab: conversations ordered by most recent message.
