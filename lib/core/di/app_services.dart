@@ -126,7 +126,7 @@ class AppServices extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> stopNetworking() async {
-    core.maintenance.stop();
+    await core.maintenance.stop();
     if (core.routingEngine.isRunning) {
       await core.routingEngine.stop();
     }

@@ -98,6 +98,7 @@ void main() {
         await alice.createIdentity('Alice');
         await relay.createIdentity('Relay');
         await bob.createIdentity('Bob');
+        await markMutualFriends(alice, bob);
         expect(alice.core.settings.networkingEnabled, isTrue);
         await alice.startRouting();
         await relay.startRouting();

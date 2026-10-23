@@ -188,17 +188,17 @@ void main() {
         );
 
         // ... and again over a socket keyed by the rotating handle (the client
-        // view). One person must still be one row, and the spare socket closed.
+        // view). Keep the newly verified session and close the stale socket.
         final second = _FakeConnection('peer-handle', peer.record);
         transport.push(second);
         await waitFor(
-          () => second.closeCount == 1,
-          description: 'the duplicate socket to be closed',
+          () => first.closeCount == 1,
+          description: 'the stale socket to be closed',
         );
 
         expect(core.routingEngine.peers.length, 1);
         expect(core.routingEngine.peers.single.identityId, peer.identityId);
-        expect(first.isOpen, isTrue);
+        expect(second.isOpen, isTrue);
       } finally {
         await core.dispose();
         try {

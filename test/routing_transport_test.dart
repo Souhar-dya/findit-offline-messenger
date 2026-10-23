@@ -102,6 +102,7 @@ void main() {
         try {
           await alice.createIdentity('Alice');
           await bob.createIdentity('Bob');
+          await markMutualFriends(alice, bob);
           await alice.startRouting();
           await bob.startRouting();
 
@@ -162,6 +163,7 @@ void main() {
           await alice.createIdentity('Alice');
           await relay.createIdentity('Relay');
           await bob.createIdentity('Bob');
+          await markMutualFriends(alice, bob);
           await alice.startRouting();
           await relay.startRouting();
           await bob.startRouting();

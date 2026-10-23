@@ -239,7 +239,7 @@ class CoreServices {
   }
 
   Future<void> dispose() async {
-    maintenance.stop();
+    await maintenance.stop();
     await routingEngine.dispose();
     await transport.dispose();
     await messageService.dispose();

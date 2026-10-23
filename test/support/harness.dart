@@ -8,6 +8,7 @@ import 'package:findit/core/protocol/envelope.dart';
 import 'package:findit/core/utils/clock.dart';
 import 'package:findit/crypto/identity_service.dart';
 import 'package:findit/crypto/secret_store.dart';
+import 'package:findit/domain/entities/friend.dart';
 import 'package:findit/domain/entities/known_identity.dart';
 import 'package:findit/domain/entities/stored_bundle.dart';
 import 'package:findit/messaging/signed_bundle.dart';
@@ -195,6 +196,33 @@ class TestNode {
       start: clock.now(),
     );
   }
+}
+
+/// Marks the two test identities as mutually accepted contacts without
+/// exercising the friend-request protocol. Use this only when a test is about
+/// message routing rather than friend onboarding.
+Future<void> markMutualFriends(TestNode first, TestNode second) async {
+  final now = first.clock.now().millisecondsSinceEpoch;
+  await first.core.friends.upsertFriend(
+    FriendRecord(
+      peerId: second.id,
+      displayName: second.identity!.displayName,
+      status: FriendStatus.accepted,
+      createdAtMs: now,
+      verifiedAtMs: now,
+      identityRecord: second.identity!.record,
+    ),
+  );
+  await second.core.friends.upsertFriend(
+    FriendRecord(
+      peerId: first.id,
+      displayName: first.identity!.displayName,
+      status: FriendStatus.accepted,
+      createdAtMs: now,
+      verifiedAtMs: now,
+      identityRecord: first.identity!.record,
+    ),
+  );
 }
 
 /// Returns the first forwardable bundle of [type] currently stored on [node].

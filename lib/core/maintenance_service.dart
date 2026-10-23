@@ -67,6 +67,7 @@ class MaintenanceService {
   final AppConfig _config;
 
   Timer? _timer;
+  Future<void>? _activeRun;
 
   Future<MaintenanceReport> runOnce() async {
     final now = _clock.now().millisecondsSinceEpoch;
@@ -116,14 +117,32 @@ class MaintenanceService {
   /// Starts a periodic cleanup. Safe to call once.
   void start({Duration interval = const Duration(minutes: 5)}) {
     _timer?.cancel();
-    unawaited(runOnce());
+    unawaited(_runIfIdle());
     _timer = Timer.periodic(interval, (_) {
-      unawaited(runOnce());
+      unawaited(_runIfIdle());
     });
   }
 
-  void stop() {
+  Future<void> _runIfIdle() async {
+    final active = _activeRun;
+    if (active != null) {
+      await active;
+      return;
+    }
+    final run = runOnce();
+    _activeRun = run;
+    try {
+      await run;
+    } catch (_) {
+      // A scheduled cleanup is best effort. A later pass can retry it.
+    } finally {
+      if (identical(_activeRun, run)) _activeRun = null;
+    }
+  }
+
+  Future<void> stop() async {
     _timer?.cancel();
     _timer = null;
+    await _activeRun;
   }
 }
