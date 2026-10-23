@@ -187,7 +187,8 @@ class _ConversationBodyState extends State<_ConversationBody> {
                           ? 'You accepted the request. Waiting for the change to finish on both phones.'
                           : '${controller.displayName} requests to '
                                 '${controller.incomingRetentionEnabled! ? 'enable' : 'disable'} '
-                                'disappearing messages for both of you.',
+                                'disappearing messages for both of you.'
+                                '${controller.incomingRetentionEnabled! ? ' Turning it on deletes all existing messages in this chat from both phones.' : ''}',
                     ),
                     if (!controller.incomingRetentionAccepted) ...[
                       const SizedBox(height: 8),
@@ -235,17 +236,47 @@ class _ConversationBodyState extends State<_ConversationBody> {
             title: const Text('Disappearing messages'),
             subtitle: Text(
               controller.outgoingRetentionRequestId != null
-                  ? 'The current shared setting remains in effect until approved.'
+                  ? controller.outgoingRetentionCommitting
+                        ? controller.outgoingRetentionEnabled == true
+                              ? 'Applying the setting. Existing messages are being deleted from both phones.'
+                              : 'Applying the shared message setting.'
+                        : controller.outgoingRetentionEnabled == true
+                        ? 'Waiting for ${controller.displayName} to approve. If approved, all existing messages in this chat will be deleted from both phones.'
+                        : 'The current shared setting remains in effect until approved.'
                   : controller.disappearingMessagesEnabled
                   ? 'Messages are deleted from both phones after 24 hours.'
-                  : 'Messages are kept on both phones.',
+                  : 'Messages are kept on both phones. Turning this on deletes all existing messages after both of you approve.',
             ),
             value: controller.disappearingMessagesEnabled,
             onChanged: controller.updatingDisappearingPreference ||
                     controller.incomingRetentionRequestId != null ||
                     controller.outgoingRetentionRequestId != null
                 ? null
-                : controller.setDisappearingMessagesEnabled,
+                : (enabled) async {
+                    if (enabled) {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Enable disappearing messages?'),
+                          content: const Text(
+                            'Your friend must approve this change. Once it is applied, all existing messages in this chat will be deleted from both phones. New messages will be deleted after 24 hours.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(dialogContext, true),
+                              child: const Text('Continue'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed != true || !context.mounted) return;
+                    }
+                    await controller.setDisappearingMessagesEnabled(enabled);
+                  },
             secondary: const Icon(Icons.timer_outlined),
           ),
           if (controller.error != null)
@@ -271,7 +302,10 @@ class _ConversationBodyState extends State<_ConversationBody> {
                     itemBuilder: (context, index) {
                       final item = items[index];
                       if (item is String) return _DayDivider(label: item);
-                      return MessageBubble(message: item as ChatMessage);
+                      return MessageBubble(
+                        message: item as ChatMessage,
+                        showExpiry: controller.disappearingMessagesEnabled,
+                      );
                     },
                   ),
           ),

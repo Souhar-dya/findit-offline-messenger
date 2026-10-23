@@ -346,6 +346,45 @@ class SqfliteMessageRepository implements MessageRepository {
   }
 
   @override
+  Future<int> deleteConversationMessages(
+    String peerId,
+    int nowMs, {
+    required int tombstoneExpiresAtMs,
+  }) async {
+    final db = await _database.database;
+    return db.transaction((txn) async {
+      final rows = await txn.query(
+        'messages',
+        columns: ['message_id', 'bundle_id'],
+        where: 'conversation_id = ?',
+        whereArgs: [peerId],
+      );
+      for (final row in rows) {
+        final bundleId = row['bundle_id'] as String?;
+        if (bundleId != null) {
+          await txn.insert(
+            'message_tombstones',
+            {
+              'bundle_id': bundleId,
+              'reason': 'retention_reset',
+              'created_at_ms': nowMs,
+              'expires_at_ms': tombstoneExpiresAtMs,
+            },
+            conflictAlgorithm: ConflictAlgorithm.ignore,
+          );
+        }
+      }
+      final deleted = await txn.delete(
+        'messages',
+        where: 'conversation_id = ?',
+        whereArgs: [peerId],
+      );
+      await txn.delete('conversations', where: 'peer_id = ?', whereArgs: [peerId]);
+      return deleted;
+    });
+  }
+
+  @override
   Future<void> delete(String id) async {
     final db = await _database.database;
     await db.delete('messages', where: 'message_id = ?', whereArgs: [id]);

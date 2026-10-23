@@ -5,9 +5,14 @@ import 'common.dart';
 
 /// A single chat bubble with delivery state and remaining lifetime.
 class MessageBubble extends StatelessWidget {
-  const MessageBubble({super.key, required this.message});
+  const MessageBubble({
+    super.key,
+    required this.message,
+    this.showExpiry = true,
+  });
 
   final ChatMessage message;
+  final bool showExpiry;
 
   bool get _outgoing => message.direction == MessageDirection.outgoing;
 
@@ -102,7 +107,7 @@ class MessageBubble extends StatelessWidget {
                       ),
                     ],
                   ),
-                if (!expired && !_outgoing)
+                if (showExpiry && message.disappears && !expired && !_outgoing)
                   Text(
                     formatRemaining(message.expiresAtMs),
                     style: Theme.of(context).textTheme.labelSmall,

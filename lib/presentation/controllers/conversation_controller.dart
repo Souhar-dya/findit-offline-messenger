@@ -45,6 +45,7 @@ class ConversationController extends ChangeNotifier {
   bool _incomingRetentionAccepted = false;
   String? _outgoingRetentionRequestId;
   bool _outgoingRetentionCommitting = false;
+  bool? _outgoingRetentionEnabled;
   String? _error;
 
   List<ChatMessage> get messages => _messages;
@@ -58,6 +59,7 @@ class ConversationController extends ChangeNotifier {
   bool get incomingRetentionAccepted => _incomingRetentionAccepted;
   String? get outgoingRetentionRequestId => _outgoingRetentionRequestId;
   bool get outgoingRetentionCommitting => _outgoingRetentionCommitting;
+  bool? get outgoingRetentionEnabled => _outgoingRetentionEnabled;
   bool get retentionChangeApplying =>
       _outgoingRetentionCommitting || _incomingRetentionAccepted;
   String? get error => _error;
@@ -84,6 +86,7 @@ class ConversationController extends ChangeNotifier {
       _incomingRetentionAccepted = retentionState.incomingAccepted;
       _outgoingRetentionRequestId = retentionState.outgoingRequestId;
       _outgoingRetentionCommitting = retentionState.outgoingCommitSent;
+      _outgoingRetentionEnabled = retentionState.outgoingEnabled;
       _error = null;
     } catch (error) {
       _error = 'Could not load this conversation: $error';

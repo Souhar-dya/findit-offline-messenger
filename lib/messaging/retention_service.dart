@@ -9,6 +9,7 @@ import '../core/utils/ids.dart';
 import '../crypto/identity_holder.dart';
 import '../crypto/identity_record.dart';
 import '../domain/repositories/identity_repository.dart';
+import '../domain/repositories/message_repository.dart';
 import '../friends/friend_service.dart';
 import 'bundle_outbox.dart';
 import 'signed_bundle.dart';
@@ -24,6 +25,7 @@ class RetentionService {
     required SettingsService settings,
     required BundleOutbox outbox,
     required IdentityRepository identities,
+    required MessageRepository messages,
     required FriendService friends,
     required IdentityHolder identityHolder,
     required Clock clock,
@@ -31,6 +33,7 @@ class RetentionService {
   }) : _settings = settings,
        _outbox = outbox,
        _identities = identities,
+       _messages = messages,
        _friends = friends,
        _identityHolder = identityHolder,
        _clock = clock,
@@ -39,6 +42,7 @@ class RetentionService {
   final SettingsService _settings;
   final BundleOutbox _outbox;
   final IdentityRepository _identities;
+  final MessageRepository _messages;
   final FriendService _friends;
   final IdentityHolder _identityHolder;
   final Clock _clock;
@@ -221,6 +225,7 @@ class RetentionService {
           type: EnvelopeType.retentionCommit,
           payload: {'rid': requestId, 'enabled': enabled},
         );
+        if (enabled) await _deleteConversationHistory(senderId);
         await _settings.saveDisappearingState(
           senderId,
           state.copyWith(enabled: enabled, outgoingCommitSent: true),
@@ -238,6 +243,7 @@ class RetentionService {
             state.incomingEnabled != enabled) {
           return;
         }
+        if (enabled) await _deleteConversationHistory(senderId);
         await _settings.saveDisappearingState(
           senderId,
           state.copyWith(
@@ -343,6 +349,16 @@ class RetentionService {
         type: EnvelopeType.retentionCommitAck,
         payload: {'rid': requestId},
       );
+
+  Future<void> _deleteConversationHistory(String peerId) async {
+    final now = _clock.now().millisecondsSinceEpoch;
+    await _messages.deleteConversationMessages(
+      peerId,
+      now,
+      tombstoneExpiresAtMs:
+          now + _config.tombstoneRetention.inMilliseconds,
+    );
+  }
 
   Future<void> _enqueue({
     required IdentityRecord peer,

@@ -52,5 +52,12 @@ abstract class MessageRepository {
     required int tombstoneExpiresAtMs,
   });
 
+  /// Deletes all history for a conversation and tombstones queued copies.
+  Future<int> deleteConversationMessages(
+    String peerId,
+    int nowMs, {
+    required int tombstoneExpiresAtMs,
+  });
+
   Future<void> delete(String id);
 }

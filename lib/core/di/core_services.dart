@@ -149,6 +149,7 @@ class CoreServices {
       settings: settings,
       outbox: outbox,
       identities: identities,
+      messages: messages,
       friends: friendService,
       identityHolder: identityHolder,
       clock: clock,

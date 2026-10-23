@@ -102,8 +102,9 @@ payload. Then send a friend request — the chat opens only when they accept.
 **4 · Send messages.** Open a friend from Chats and send text, or attach a PNG
 image. Disappearing messages are enabled by default: both copies expire after
 24 hours. Changing that setting requires the other person to accept in the chat.
-A signed delivery receipt flips the message to *delivered* once it actually
-arrives.
+Turning disappearing messages back on deletes all existing messages in that
+conversation from both phones after both people approve. A signed delivery
+receipt flips the message to *delivered* once it actually arrives.
 
 **Nearby** shows what the transport can really do and which peers it has
 genuinely discovered — it never invents devices to look busy.
