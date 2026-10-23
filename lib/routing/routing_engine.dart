@@ -98,6 +98,11 @@ class RoutingEngine {
   /// and [stop] can settle any in-flight handler.
   Future<void> _ingestQueue = Future<void>.value();
 
+  /// Wi-Fi Direct has one group negotiation in flight per radio. Discovery can
+  /// report several peers in one scan, so serialize dials instead of
+  /// overwriting the native transport's single pending negotiation.
+  Future<void> _connectQueue = Future<void>.value();
+
   final Map<String, _Session> _sessions = <String, _Session>{};
   final Set<String> _connecting = <String>{};
   final StreamController<List<PeerSessionInfo>> _peerChanges =
@@ -162,6 +167,7 @@ class RoutingEngine {
     _reconcileTimer?.cancel();
     _reconcileTimer = null;
     await _cancelSubscriptions();
+    await _swallow(_connectQueue);
     for (final session in [..._sessions.values]) {
       await session.dispose();
     }
@@ -216,7 +222,13 @@ class RoutingEngine {
   }
 
   /// Opens a connection to a discovered peer handle.
-  Future<void> connectTo(String transportPeerId) async {
+  Future<void> connectTo(String transportPeerId) {
+    final queued = _connectQueue.then((_) => _connectToNow(transportPeerId));
+    _connectQueue = _swallow(queued);
+    return queued;
+  }
+
+  Future<void> _connectToNow(String transportPeerId) async {
     if (_connecting.contains(transportPeerId)) return;
     if (_sessions.containsKey(transportPeerId)) return;
     _connecting.add(transportPeerId);

@@ -72,7 +72,9 @@ class NearbyScreen extends StatelessWidget {
                           title: Text(
                             peer.displayNameHint ?? 'Unnamed device',
                           ),
-                          subtitle: const Text('In range'),
+                          subtitle: const Text(
+                            'In range · connecting automatically',
+                          ),
                         ),
                     ],
                   ),
@@ -101,8 +103,9 @@ class _StatusCard extends StatelessWidget {
         children: [
           Text(
             running
-                ? 'Keep Wi-Fi on and stay nearby. Your devices connect to '
-                      'each other by themselves.'
+                ? 'Keep Wi-Fi on and stay nearby. FindIt connects discovered '
+                      'devices automatically. Android may ask you to approve '
+                      'a Wi-Fi Direct invitation.'
                 : 'FindIt is not looking right now. Switch it on in Profile → '
                       'FindIt network to discover devices around you.',
           ),
