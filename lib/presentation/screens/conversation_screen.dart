@@ -144,6 +144,7 @@ class _ConversationBodyState extends State<_ConversationBody> {
       }
       return;
     }
+    if (!mounted) return;
 
     final controller = context.read<ConversationController>();
     final ok = await controller.sendPng(bytes, filename);
