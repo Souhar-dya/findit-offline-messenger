@@ -14,9 +14,9 @@ no cloud in the middle.
 
 ---
 
-## Status: 1.0.2 — working on Android
+## Status: 1.0.3 — working on Android
 
-- **Real, running app.** Version 1.0.2 ships as APKs you can install on
+- **Real, running app.** Version 1.0.3 ships as APKs you can install on
   Android 7.0 and newer.
 - **Verified on real phones.** Two-way text and PNG delivery was run on a
   Samsung SM-G990E and a Motorola Edge 60 Pro: they discover each other, form a
