@@ -250,7 +250,15 @@ class SqfliteMessageRepository implements MessageRepository {
       }
       final count = await txn.update(
         'messages',
-        {'status': MessageStatus.expired.wire},
+        {
+          'status': MessageStatus.expired.wire,
+          'text_content': null,
+          'image_bytes': null,
+          'image_hash': null,
+          'image_width': null,
+          'image_height': null,
+          'image_filename': null,
+        },
         where: 'direction = ? AND expires_at_ms <= ? AND status NOT IN (?, ?)',
         whereArgs: [
           MessageDirection.outgoing.name,
