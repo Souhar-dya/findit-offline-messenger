@@ -7,11 +7,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/di/app_services.dart';
 import '../../domain/entities/chat_message.dart';
+import '../../messaging/image_to_png.dart';
 import '../controllers/conversation_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/message_bubble.dart';
 
-/// A single conversation: message history, text input and PNG attachments.
+/// A single conversation: message history, text input and image attachments.
 class ConversationScreen extends StatelessWidget {
   const ConversationScreen({
     super.key,
@@ -44,20 +45,34 @@ class _ConversationBody extends StatefulWidget {
 class _ConversationBodyState extends State<_ConversationBody> {
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
+  late final ConversationController _conversation;
+  final Set<String> _knownMessageIds = {};
 
   @override
   void dispose() {
     _input.dispose();
     _scroll.dispose();
+    _conversation.removeListener(_onConversationChanged);
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
+    _conversation = context.read<ConversationController>();
+    _knownMessageIds.addAll(_conversation.messages.map((message) => message.id));
+    _conversation.addListener(_onConversationChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<ConversationController>().markRead();
     });
+  }
+
+  void _onConversationChanged() {
+    var hasNewMessage = false;
+    for (final message in _conversation.messages) {
+      if (_knownMessageIds.add(message.id)) hasNewMessage = true;
+    }
+    if (hasNewMessage) _scrollToEnd();
   }
 
   Future<void> _sendText() async {
@@ -88,7 +103,7 @@ class _ConversationBodyState extends State<_ConversationBody> {
             ),
             ListTile(
               leading: const Icon(Icons.folder_open),
-              title: const Text('Choose a PNG file'),
+              title: const Text('Choose an image file'),
               onTap: () => Navigator.pop(context, 'file'),
             ),
           ],
@@ -106,8 +121,7 @@ class _ConversationBodyState extends State<_ConversationBody> {
       filename = picked.name.isEmpty ? filename : picked.name;
     } else {
       final file = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: const ['png'],
+        type: FileType.image,
       );
       if (file == null) return;
       bytes = await file.readAsBytes();
@@ -115,12 +129,28 @@ class _ConversationBodyState extends State<_ConversationBody> {
     }
     if (!mounted) return;
 
+    try {
+      bytes = await ImageToPng.convert(bytes);
+      filename = ImageToPng.pngFilename(filename);
+    } on Exception catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error.toString().replaceFirst('ValidationException: ', ''),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     final controller = context.read<ConversationController>();
     final ok = await controller.sendPng(bytes, filename);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(controller.error ?? 'Could not send image (PNG only)'),
+          content: Text(controller.error ?? 'Could not send image'),
         ),
       );
     }
@@ -349,7 +379,7 @@ class _Composer extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             IconButton(
-              tooltip: 'Attach a PNG',
+              tooltip: 'Attach an image',
               onPressed: busy ? null : onAttach,
               icon: const Icon(Icons.add_photo_alternate_outlined),
             ),

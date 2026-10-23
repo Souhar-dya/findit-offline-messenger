@@ -39,7 +39,7 @@ dependencies:
   uuid: ^4.6.0
   collection: ^1.19.1
 
-  # Attachment selection (PNG only).
+  # Image attachments are normalized to PNG before sending.
   image_picker: ^1.2.4
   file_picker: ^13.1.0
 
