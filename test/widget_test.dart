@@ -85,12 +85,12 @@ void main() {
   ) async {
     final (services, directory) = await buildServices(tester);
     try {
-      await tester.pumpWidget(FindItApp(services: services));
+      await tester.pumpWidget(PaxbyApp(services: services));
       await tester.pump();
 
       // Before consent: the terms are shown and no switch/data is visible.
       expect(find.text(TermsDocument.title), findsOneWidget);
-      expect(find.text('FindIt is radio silent'), findsNothing);
+      expect(find.text('Paxby is radio silent'), findsNothing);
 
       // The action is disabled until the box is ticked.
       final agreeButton = find.byKey(const Key('consent-agree'));
@@ -104,8 +104,8 @@ void main() {
       await tester.runAsync(services.acceptConsent);
       await tester.pump();
       expect(find.text(TermsDocument.title), findsNothing);
-      expect(find.text('FindIt is radio silent'), findsOneWidget);
-      expect(find.text('Welcome to FindIt'), findsNothing);
+      expect(find.text('Paxby is radio silent'), findsOneWidget);
+      expect(find.text('Welcome to Paxby'), findsNothing);
 
       final switchTile = find.byKey(const Key('networking-switch'));
       expect(tester.widget<SwitchListTile>(switchTile).value, isFalse);
@@ -113,9 +113,9 @@ void main() {
       // Turning the switch on starts the app: onboarding appears.
       await tester.tap(switchTile);
       await tester.pump();
-      await pumpUntilFound(tester, find.text('Welcome to FindIt'));
-      expect(find.text('FindIt is radio silent'), findsNothing);
-      expect(find.text('Welcome to FindIt'), findsOneWidget);
+      await pumpUntilFound(tester, find.text('Welcome to Paxby'));
+      expect(find.text('Paxby is radio silent'), findsNothing);
+      expect(find.text('Welcome to Paxby'), findsOneWidget);
     } finally {
       await disposeServices(tester, services, directory);
     }
@@ -131,11 +131,11 @@ void main() {
         await services.setNetworkingEnabled(true);
       });
 
-      await tester.pumpWidget(FindItApp(services: services));
+      await tester.pumpWidget(PaxbyApp(services: services));
       await tester.pump();
 
       // The first-run flow is shown when no identity exists yet.
-      expect(find.text('Welcome to FindIt'), findsOneWidget);
+      expect(find.text('Welcome to Paxby'), findsOneWidget);
       expect(find.text('Create identity'), findsOneWidget);
       expect(find.text('Your identity'), findsNothing);
 

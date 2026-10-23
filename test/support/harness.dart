@@ -17,7 +17,7 @@ import 'package:path/path.dart' as p;
 
 import 'db.dart';
 
-/// A self-contained FindIt instance for tests.
+/// A self-contained Paxby instance for tests.
 ///
 /// It owns a temporary SQLite database, an [InMemorySecretStore], a
 /// [FixedClock] and a [SimulatedTransport] on a [SimulatedNetwork]. This is the
