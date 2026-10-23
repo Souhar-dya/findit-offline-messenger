@@ -203,6 +203,14 @@ class TestNode {
 /// message routing rather than friend onboarding.
 Future<void> markMutualFriends(TestNode first, TestNode second) async {
   final now = first.clock.now().millisecondsSinceEpoch;
+  await first.core.friendService.rememberIdentity(
+    second.identity!.record,
+    verified: true,
+  );
+  await second.core.friendService.rememberIdentity(
+    first.identity!.record,
+    verified: true,
+  );
   await first.core.friends.upsertFriend(
     FriendRecord(
       peerId: second.id,
